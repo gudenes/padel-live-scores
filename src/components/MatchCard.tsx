@@ -41,6 +41,9 @@ import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { getMatchPrediction } from '@/lib/match-prediction'
 import { shouldShowFavTag } from '@/components/match-card-fav-tag'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import type { MatchPoints } from '@/lib/live-race/qualifying'
+import MatchPointsBadge from '@/components/MatchPointsBadge'
+import { matchRoundPoints } from '@/lib/live-race/engine'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 
 export { shouldShowFavTag } from '@/components/match-card-fav-tag'
@@ -62,6 +65,8 @@ const CHUNKY = {
 }
 
 const PULSE_KEYFRAMES = `
+.mc-points-metadata > * { flex-shrink: 0; }
+.mc-points-metadata::-webkit-scrollbar { display: none; }
 @keyframes fipStreamPulse {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.18); }
@@ -193,6 +198,7 @@ export interface MatchCardProps {
    *  date differs, the card renders a small chip surfacing that date.
    *  Undefined on tournament-detail / match-detail — chip never fires. */
   dayBucketIso?: string
+  qualifyingPoints?: MatchPoints
 }
 
 export function MatchCard({
@@ -205,6 +211,7 @@ export function MatchCard({
   estimatedLabel,
   tournamentLevel,
   dayBucketIso,
+  qualifyingPoints,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tMatch = useTranslations('match')
@@ -287,6 +294,8 @@ export function MatchCard({
   }, [isLive, match.id, p1TotalGames, p2TotalGames, _p1Pts, _p2Pts])
 
   const round = formatRound(match.round)
+  const pointsBadge: MatchPoints | null = dayBucketIso && !teamCountries
+    ? qualifyingPoints ?? matchRoundPoints(tournamentLevel, round, dayBucketIso.slice(0, 4)) : null
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match, tournamentLevel)
   const presenceOnlyLive = isPresenceOnlyLive(
@@ -437,10 +446,13 @@ export function MatchCard({
         )}
 
         {/* Metadata chip row */}
-        <div
+        <div className={pointsBadge != null ? 'mc-points-metadata' : undefined}
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
+            flexWrap: pointsBadge != null ? 'nowrap' : 'wrap',
+            overflowX: pointsBadge != null ? 'auto' : undefined,
+            scrollbarWidth: 'none',
+            marginRight: pointsBadge != null && !isFinished ? 24 : undefined,
             alignItems: 'center',
             gap: 6,
             marginBottom: 6,
@@ -448,7 +460,10 @@ export function MatchCard({
             zIndex: 2,
           }}
         >
-          {round && <Chip>{round}</Chip>}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            {round && <Chip>{round}</Chip>}
+            {pointsBadge != null && <MatchPointsBadge points={pointsBadge.winner} loserPoints={pointsBadge.loser} qualifying={pointsBadge.qualifying} qualificationBonus={pointsBadge.qualificationBonus} />}
+          </span>
           {courtRaw && <Chip>{courtRaw.toUpperCase()}</Chip>}
           {isScheduled && forecast?.next_to_play && <NextToPlayBadge />}
           {showDayChip && dayChipLabel && (

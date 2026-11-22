@@ -18,7 +18,7 @@ function run(args, auxiliary=false) {
     finished=true;children.delete(child)
     if(stopping) return
     if(auxiliary) {
-      console.warn('[simulation] worker stopped; retrying in 30 seconds')
+      console.warn(`[worker ${args.at(-1)}] stopped; retrying in 30 seconds`)
       setTimeout(()=>run(args,true),30000)
     } else stop(code || 1)
   }
@@ -27,3 +27,5 @@ function run(args, auxiliary=false) {
 }
 run(['node_modules/next/dist/bin/next','start','-p',process.env.PORT || '3000'])
 if (process.env.PLAY_SIMULATION_ENABLED === 'true') run(['scripts/play-simulation/production-worker.mjs'],true)
+
+if (process.env.LIVE_RACE_ENABLED === 'true') run(['--max-old-space-size=256', '--experimental-strip-types', 'scripts/watch-live-race.ts'], true)

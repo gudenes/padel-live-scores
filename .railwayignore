@@ -155,3 +155,6 @@
 **/node_modules
 **/.next
 **/.env*
+
+# Never upload local caches, credentials, or development locks.
+/.local

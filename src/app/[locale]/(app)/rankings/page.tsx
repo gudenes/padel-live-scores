@@ -22,6 +22,8 @@ import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
 import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
 import { SECONDARY } from '@/components/ExplainSheet'
+import RaceStandings, { RaceLiveBadge } from '@/components/rankings/RaceStandings'
+import type { RaceSnapshot } from '@/lib/live-race/types'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -289,6 +291,8 @@ export default function V3RankingPage() {
     : searchParams.get('type') === 'coaches' ? 'coaches'
     : 'official'
   const highlight = searchParams.get('highlight')
+  const [raceData, setRaceData] = useState<RaceSnapshot | null>(null)
+  const [raceError, setRaceError] = useState(false)
 
   const [rankType, setRankType] = useState<RankType>(initialType)
   const [gender, setGender] = useState<Gender>(initialGender)
@@ -393,7 +397,9 @@ export default function V3RankingPage() {
 
   // ── Data fetching ──────────────────────────────────────────
   const load = useCallback(async (rt: RankType, g: Gender) => {
+    if (rt === 'race') return
     setLoading(true)
+    setUpdatedAt(null)
     try {
       if (rt === 'coaches') {
         // CoachRankingList owns its own fetching.
@@ -443,6 +449,7 @@ export default function V3RankingPage() {
           .not(rankCol, 'is', null)
           .order(rankCol, { ascending: true })
           .limit(1000)
+        if (fallback.error) throw fallback.error
         data = fallback.data as typeof data
       }
 
@@ -468,6 +475,47 @@ export default function V3RankingPage() {
   }, [])
 
   useEffect(() => { load(rankType, gender) }, [rankType, gender, load])
+
+  useEffect(() => {
+    if (rankType !== 'race') return
+    let cancelled = false
+    let fetching = false
+    const controller = new AbortController()
+    setLoading(true)
+    setPlayers([])
+    setRaceData(null)
+    setRaceError(false)
+    setUpdatedAt(null)
+    async function refresh() {
+      if (fetching) return
+      fetching = true
+      try {
+        const response = await fetch(`/api/rankings/race?gender=${gender}`, { cache: 'no-store', signal: controller.signal })
+        if (!response.ok) throw new Error('Race unavailable')
+        const result: RaceSnapshot = await response.json()
+        if (cancelled) return
+        setRaceData(result)
+        setPlayers(result.players.map(p => ({ ...p, ranking: null, points: null, ranking_move: null, points_move: null,
+          race_move: p.officialRank - p.race_ranking, race_points_move: p.liveGain, updated_at: result.computedAt, ranking_date: result.baselineDate })))
+        setUpdatedAt(result.baselineDate)
+        setRaceError(false)
+      } catch {
+        if (!cancelled) {
+          setRaceError(true)
+          setRaceData(current => current ? { ...current, status: 'stale' } : null)
+        }
+      } finally {
+        fetching = false
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void refresh()
+    const timer = setInterval(() => { if (!document.hidden) void refresh() }, 30_000)
+    const onVisible = () => { if (!document.hidden) void refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [rankType, gender])
+
 
   // ── Highlight deep-link: scroll to player + pulse ──────────
   useEffect(() => {
@@ -678,7 +726,7 @@ export default function V3RankingPage() {
       <SlidingInkTabs<RankType>
         tabs={[
           { key: 'official', label: t('official') },
-          { key: 'race', label: t('race') },
+          { key: 'race', label: <>{t('race')}{raceData && ['live', 'partial'].includes(raceData.status) && <RaceLiveBadge />}</> },
           { key: 'money', label: t('money') },
           { key: 'coaches', label: t('coachesTab') },
         ]}
@@ -724,7 +772,7 @@ export default function V3RankingPage() {
       ) : (
       <>
       {/* ── Column labels ─────────────────────────────────── */}
-      <div style={{
+      {rankType !== 'race' && <div style={{
         display: 'flex', alignItems: 'center',
         padding: '8px 16px', gap: 12,
         borderBottom: `1px solid ${BORDER}`,
@@ -733,7 +781,7 @@ export default function V3RankingPage() {
         <span style={{ width: 40, flexShrink: 0 }} />
         <span style={{ flex: 1, fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('player')}</span>
         <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{rankType === 'money' ? t('prizeColumn') : t('points')}</span>
-      </div>
+      </div>}
 
       {/* ── Player list ───────────────────────────────────── */}
       {loading ? (
@@ -748,6 +796,11 @@ export default function V3RankingPage() {
           <div style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>{t('loadingRankings')}</div>
           <style dangerouslySetInnerHTML={{ __html: `@keyframes v3-rank-spin { to { transform: rotate(360deg); } }` }} />
         </div>
+      ) : rankType === 'race' ? (
+        <>
+          {raceError && <p role="status" style={{ margin: 16, color: '#e6bd72' }}>{t('raceUnavailable')}</p>}
+          <RaceStandings players={players} gender={gender} baselineDate={formattedDate} snapshot={raceData} query={query} />
+        </>
       ) : rankType === 'money' ? (
         (moneyRows && moneyRows.length > 0) ? (
           <>
@@ -782,13 +835,9 @@ export default function V3RankingPage() {
             <span style={{ fontSize: 28 }}>{query ? '\uD83D\uDD0D' : '\uD83C\uDFC6'}</span>
           </div>
           <p style={{ color: '#E2E8F0', fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
-            {query ? t('noResults', { query }) : rankType === 'race' ? t('noRaceRankings') : t('noRankings')}
+            {query ? t('noResults', { query }) : t('noRankings')}
           </p>
-          {!query && rankType === 'race' && (
-            <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>
-              Race data will appear once the FIP ranking sync runs.
-            </p>
-          )}
+
         </div>
       ) : (
         <>

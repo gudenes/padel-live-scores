@@ -21,7 +21,7 @@
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
 // for per-match filtering.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchCard } from '@/components/MatchCard'
@@ -31,6 +31,7 @@ import {
   stageChipKey,
 } from '@/lib/tournament-labels'
 import { useTranslations } from 'next-intl'
+import type { MatchPoints } from '@/lib/live-race/qualifying'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
 import { isPremierTier } from '@/lib/tournament-tier'
@@ -183,6 +184,20 @@ function tournamentStatusBadge(
 // ── Component ───────────────────────────────────────────────────────────
 
 export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
+  const [qualifying, setQualifying] = useState<Record<string, MatchPoints>>({})
+  const needsQualifying = group.matches.some(m => isQualifierRound(m.round))
+  useEffect(() => {
+    setQualifying({})
+    if (!needsQualifying) return
+    const controller = new AbortController()
+    const refresh = () => fetch(`/api/rankings/match-points?tournament=${group.tournamentId}`, { signal: controller.signal, cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('Draw unavailable'); return r.json() })
+      .then(data => { if (!controller.signal.aborted) setQualifying(data.matches ?? {}) })
+      .catch(() => { if (!controller.signal.aborted) setQualifying({}) })
+    void refresh()
+    const timer = setInterval(() => { if (!document.hidden) void refresh() }, 60_000)
+    return () => { controller.abort(); clearInterval(timer) }
+  }, [group.tournamentId, needsQualifying])
   const tStage = useTranslations('match.stageChip')
   const tDaily = useTranslations('daily')
 
@@ -414,6 +429,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
               status={status}
               locale={group.locale}
               userTz={group.userTz}
+              qualifyingPoints={qualifying[m.id]}
               tournamentLevel={group.tournamentLevel}
               dayBucketIso={group.dayBucketIso}
             />
@@ -478,7 +494,8 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             status="finished"
             locale={group.locale}
             userTz={group.userTz}
-            tournamentLevel={group.tournamentLevel}
+            qualifyingPoints={qualifying[m.id]}
+              tournamentLevel={group.tournamentLevel}
             dayBucketIso={group.dayBucketIso}
           />
         ))}
@@ -494,7 +511,9 @@ function MatchEntry({
   userTz,
   tournamentLevel,
   dayBucketIso,
+  qualifyingPoints,
 }: {
+  qualifyingPoints?: MatchPoints
   match: GroupMatch
   status: 'live' | 'upcoming' | 'finished'
   locale: string
@@ -518,6 +537,7 @@ function MatchEntry({
         genderColor={genderColor}
         locale={locale}
         userTz={userTz}
+        qualifyingPoints={qualifyingPoints}
         tournamentLevel={tournamentLevel}
         dayBucketIso={dayBucketIso}
       />
