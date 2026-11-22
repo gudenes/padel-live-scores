@@ -131,14 +131,6 @@ export function registerRefreshTournamentRoute(
           onlyTournamentIds: allowlist,
         }),
       );
-      await runStep('fip-entry-list-populator', () =>
-        runFipEntryListPopulator({
-          supabase: opts.supabase,
-          logger: stepLogger,
-          dryRun: false,
-          onlyTournamentIds: allowlist,
-        }),
-      );
       await runStep('draw-fetcher', () =>
         runDrawFetcher({
           supabase: opts.supabase,
@@ -151,6 +143,15 @@ export function registerRefreshTournamentRoute(
           supabase: opts.supabase,
           httpClient: opts.httpClient,
           logger: stepLogger,
+          onlyTournamentIds: allowlist,
+        }),
+      );
+      // Reconcile entries after fetching the newest draw.
+      await runStep('fip-entry-list-populator', () =>
+        runFipEntryListPopulator({
+          supabase: opts.supabase,
+          logger: stepLogger,
+          dryRun: false,
           onlyTournamentIds: allowlist,
         }),
       );
