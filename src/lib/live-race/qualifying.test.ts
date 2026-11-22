@@ -6,10 +6,10 @@ function draw(gender: string, counts: number[]): DrawRow[] {
 it('distinguishes Mexico men Q2 from the women qualifying final', () => {
   const points = qualifyingPoints('major', '2026', [...draw('men', [16,8,4]), ...draw('women', [8,4])])
   expect(points['men-Q1-0']).toMatchObject({ winner:15, loser:0 })
-  expect(points['men-Q2-0']).toMatchObject({ winner:30, loser:15 })
-  expect(points['men-Q3-0']).toMatchObject({ winner:50, loser:30, qualificationBonus:15 })
+  expect(points['men-Q2-0']).toMatchObject({ winner:30, loser:15, currentRound: 'Q2', nextRound: 'Q3' })
+  expect(points['men-Q3-0']).toMatchObject({ winner:50, loser:30, qualificationBonus:15, nextRound:'R64' })
   expect(points['women-Q1-0']).toMatchObject({ winner:30, loser:0 })
-  expect(points['women-Q2-0']).toMatchObject({ winner:50, loser:30, qualificationBonus:15 })
+  expect(points['women-Q2-0']).toMatchObject({ winner:50, loser:30, qualificationBonus:15, nextRound:'R64' })
 })
 it('handles P1 eight qualifiers and distinct main-draw entry points', () => {
   expect(qualifyingPoints('p1','2026',draw('men',[16,8]))['men-Q2-0']).toMatchObject({winner:32,loser:18})

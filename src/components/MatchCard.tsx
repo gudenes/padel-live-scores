@@ -449,7 +449,7 @@ export function MatchCard({
         <div className={pointsBadge != null ? 'mc-points-metadata' : undefined}
           style={{
             display: 'flex',
-            flexWrap: pointsBadge != null ? 'nowrap' : 'wrap',
+            flexWrap: 'nowrap',
             overflowX: pointsBadge != null ? 'auto' : undefined,
             scrollbarWidth: 'none',
             marginRight: pointsBadge != null && !isFinished ? 24 : undefined,
@@ -462,9 +462,9 @@ export function MatchCard({
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             {round && <Chip>{round}</Chip>}
-            {pointsBadge != null && <MatchPointsBadge points={pointsBadge.winner} loserPoints={pointsBadge.loser} qualifying={pointsBadge.qualifying} qualificationBonus={pointsBadge.qualificationBonus} />}
+            {pointsBadge != null && <MatchPointsBadge round={pointsBadge.currentRound ?? round} nextRound={pointsBadge.nextRound} points={pointsBadge.winner} loserPoints={pointsBadge.loser} qualifying={pointsBadge.qualifying} qualificationBonus={pointsBadge.qualificationBonus} />}
           </span>
-          {courtRaw && <Chip>{courtRaw.toUpperCase()}</Chip>}
+          {courtRaw && <span title={courtRaw} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, fontSize: 9, color: MUTED }}>{courtRaw.toUpperCase()}</span>}
           {isScheduled && forecast?.next_to_play && <NextToPlayBadge />}
           {showDayChip && dayChipLabel && (
             <button

@@ -24,7 +24,7 @@ function card(label: string, smart_schedule: SmartScheduleForecast | null = null
 describe('homepage uses the matches-page schedule', () => {
   it('shows the same estimate and next-to-play badge instead of the stored time', () => {
     card('Followed by', forecast)
-    expect(screen.getByText('nextToPlay')).toBeTruthy()
+    expect(screen.getByText('nextToPlayShort')).toBeTruthy()
     expect(screen.getByText('minutesRange {"min":20,"max":40}')).toBeTruthy()
     expect(screen.queryByText('10:30*')).toBeNull()
   })
@@ -41,7 +41,7 @@ describe('homepage uses the matches-page schedule', () => {
     card('Followed by', { ...forecast, next_to_play: false })
     expect(screen.getByText('unlikelyBefore')).toBeTruthy()
     expect(screen.getByText('10:20')).toBeTruthy()
-    expect(screen.queryByText('nextToPlay')).toBeNull()
+    expect(screen.queryByText('nextToPlayShort')).toBeNull()
   })
   it('uses the matches-page approximate clock fallback for stale forecasts', () => {
     card('Followed by', { ...forecast, computed_at: '2026-10-16T07:55:00Z' })

@@ -9,7 +9,7 @@ afterEach(cleanup)
 describe('smart schedule controls', () => {
   it('shows queue position separately from an estimate', () => {
     render(<><NextToPlayBadge /><SmartScheduleHint forecast={forecast} now={Date.parse(forecast.computed_at)} locale="es" tz="Europe/Madrid" /></>)
-    expect(screen.getByText('nextToPlay')).toBeTruthy()
+    expect(screen.getByText('nextToPlayShort')).toBeTruthy()
     expect(screen.getByRole('button').textContent).toContain('estimatePrefix')
   })
   it('opens the timing explanation without navigating its wrapping card', () => {

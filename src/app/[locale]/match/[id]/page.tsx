@@ -28,6 +28,7 @@ import { shouldShowRecap, defaultFinishedTab, matchDetailTabKeys } from './recap
 import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import ShareButton from '@/components/ShareButton'
+import MatchDetailPointsBadge from '@/components/MatchDetailPointsBadge'
 import MatchPlayNavigation from '@/components/player/MatchPlayNavigation'
 
 import { WinnerBanner } from './WinnerBanner'
@@ -811,6 +812,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{match.court ?? ''}</span>
           {match.court && match.round && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />}
           <span style={{ fontSize: 10, color: '#777' }}>{match.round ?? ''}</span>
+          <MatchDetailPointsBadge matchId={match.id} tournamentId={(match as any).tournament?.id} level={(match as any).tournament?.level} round={match.round} season={((match as any).tournament?.starts_at ?? match.scheduled_at ?? '').slice(0, 4)} />
           {isScheduled && smartForecast?.next_to_play && <NextToPlayBadge />}
           {duration && (
             <>
