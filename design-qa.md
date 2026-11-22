@@ -1,21 +1,20 @@
-# Video & analysis drawer — local QA
+# Race MVP on latest main — 2026-11-22
 
-2026-11-10. Reference: selected option 3 with neutral Local processing terminology. Implemented in the existing report rather than a separate demo.
+Source: `/Volumes/Crucial/Apps/codex/home/generated_images/01a202a5-36aa-70b0-9c06-921a68c9379a/exec-f263009a-1a8d-413e-ab8d-7f13d77587c8.png`.
 
-## Verified
-- Signed-in local second-match report in the in-app browser.
-- White drawer, existing lime accents, typography, buttons and player portraits alongside the video.
-- Uploaded video shows real filename, 59:48 duration and 3.20 GB size.
-- Saved setup shows the four actual players; editing disabled while processing.
-- Live player tracking advanced from 60% to 62% during review; percentage explicitly describes the current stage.
-- Close and reopen retains job and saved setup. No analysis started/stopped during QA.
-- Local processing / Connected replaces personal device naming; device management collapsed.
-- Fixed global header style leakage discovered in screenshot review.
-- Screenshot: /tmp/video-analysis-drawer.jpg
-- TypeScript check passed. Four new progress tests and 21 related existing tests passed.
+Checkout: `codex/live-race-mvp`, based on `origin/main` at `689482f47`.
+The repository session check confirmed production code is contained in main.
+Existing Coaches tab, four-tab swipe navigation, gender filters, and current application shell are preserved.
 
-## Scope and limitations
-- Local only; not deployed.
-- Existing transfer and job APIs retained. No fresh multi-GB upload performed during this UI verification.
-- Desktop visual QA passed. Responsive CSS included; mobile visual QA not performed.
-- Existing second-match scouting timestamps appear unaligned (zero timed points); this is separate from transfer/analysis status and not corrected by this UI change.
+Target viewport: 412 × 915 CSS pixels. Source image is a higher-density mockup.
+Implementation screenshots and density-normalized full-view/focused comparisons are unavailable: the in-app browser connection timed out. No visual pass is claimed.
+
+- Fonts/typography: current app font and compact headings; browser wrapping checks pending.
+- Spacing: restored 40px portraits and 12px vertical row padding (64px rows), matching the existing ranking list. Removed expanded summary and footer; a compact Live switch and info tooltip replace them. Narrow/mobile visual review remains pending.
+- Colors/tokens: existing lime, charcoal and category accents. Illustrative preview controls have been removed.
+- Images: public player portraits and flags, with initials fallback; no generated identities.
+- Copy: five supported languages, dated official baseline, provisional standings, pending verification and stale status. Real match results replace fixtures; all 1,000 available rows per gender are returned by the local API.
+- Tests: Race calculation, parser, full-list rendering, stale state and cutoff tests pass. Full repository typecheck passes.
+- Browser interactions and console checks: pending. HTTP/API checks pass; no visual pass is claimed.
+
+final result: blocked
