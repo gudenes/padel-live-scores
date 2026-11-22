@@ -1,0 +1,16 @@
+.banner{margin:16px;border:1px solid #506b38;background:#10241b;color:#f4eedc;overflow:hidden;box-shadow:0 6px 20px #0003}
+.art{position:relative;background:#18251d}
+.art>img{display:block;width:100%;height:auto}
+.label{position:absolute;left:14px;top:16px;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#fff4d9;text-shadow:0 2px 6px #000}
+.close{position:absolute!important;right:12px;top:10px;width:44px;min-height:44px}
+.close :global(.pn-press-face){padding:0;min-height:40px;font-size:23px}
+.content{padding:18px 20px 24px}
+.eyebrow{margin:0 0 7px;color:#a1e34d;font-size:11px;font-weight:850;letter-spacing:1.3px;text-transform:uppercase}
+.content h2{margin:0;font-size:30px;font-weight:900;line-height:1.06;letter-spacing:-.8px;text-wrap:balance}
+.body{font-size:14px;line-height:1.5;color:#d0dacb;margin:10px 0}
+.prize{font-size:16px;font-weight:800;line-height:1.4;margin:14px 0;color:#ffe2a4}
+.disclaimer{display:flex;flex-direction:column;gap:4px;border-top:1px solid #ffffff20;padding-top:13px;margin:14px 0 18px;font-size:12px;line-height:1.5;color:#ccd9c7}
+.disclaimer strong{color:#b5ec75;font-size:13px}
+.cta{display:block;width:100%;text-decoration:none}
+.cta :global(.pn-press-face){display:flex;justify-content:center;align-items:center;gap:14px}
+@media(max-width:360px){.banner{margin:12px}.content{padding:16px}.content h2{font-size:26px}}

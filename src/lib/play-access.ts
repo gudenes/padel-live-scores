@@ -1,9 +1,8 @@
 // Play the Next — server-side access control.
 //
-// The feature is deployed to production but visible only to whitelisted
-// users. Access requires BOTH:
+// Predict is public. Account operations still require BOTH:
 //   1. the `play_enabled` feature flag (global kill switch)
-//   2. a row in `play_access` for this user
+//   2. an authenticated account with an existing profile
 //
 // Everything here is server-only and uses the service-role client. The
 // browser must never be the thing deciding whether you have access:
@@ -32,7 +31,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
  *
  * This only ever applies outside production (see `isLocalRequest`). Accepting
  * it in a production build would let anyone flip which flag column governs
- * by forging a Host header — the per-user whitelist would still deny them,
+ * by forging a Host header — the authenticated profile check would still deny them,
  * but the global kill switch would stop being trustworthy, and a kill switch
  * you cannot trust is worse than none.
  */
@@ -56,7 +55,7 @@ const PRIVATE_IP = new RegExp(
  *
  * The header is attacker-controlled in principle. It is not a security
  * boundary here: picking the wrong column only chooses which flag governs,
- * and the per-user whitelist still has to pass either way.
+ * and the authenticated profile check still has to pass either way.
  */
 async function isLocalRequest(): Promise<boolean> {
   if (process.env.NODE_ENV === 'production') return false
@@ -76,8 +75,7 @@ async function isLocalRequest(): Promise<boolean> {
  * Is the feature switched on at all?
  *
  * Deliberately fails CLOSED: a missing row, a query error, or a NULL value
- * all resolve to `false`. A whitelist that opens up when the database
- * hiccups is not a whitelist.
+ * all resolve to `false`. Database failures must not enable game access.
  */
 export async function isPlayEnabled(supabase: SupabaseClient): Promise<boolean> {
   const { data, error } = await supabase
@@ -97,21 +95,21 @@ export async function isPlayEnabled(supabase: SupabaseClient): Promise<boolean> 
 }
 
 /**
- * Is this specific user on the allowlist? Assumes the caller already
+ * Does this account have a valid player profile? Assumes the caller already
  * established the user is authenticated.
  */
-export async function isWhitelisted(
+export async function isPlayAccount(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<boolean> {
   const { data, error } = await supabase
-    .from('play_access')
-    .select('user_id')
-    .eq('user_id', userId)
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
     .maybeSingle()
 
   if (error) {
-    console.warn('[play-access] whitelist lookup failed, denying:', error.message)
+    console.warn('[play-access] profile lookup failed, denying:', error.message)
     return false
   }
   return data != null
@@ -122,16 +120,7 @@ export interface PlayAccessGrant {
   supabase: SupabaseClient
 }
 
-/**
- * The single chokepoint. Returns the user + a service client when access is
- * granted, or `null` for every failure mode — logged out, flag off, not
- * whitelisted, or an error looking any of that up.
- *
- * Callers must not distinguish between those cases in what they render or
- * return. A non-whitelisted user should not be able to tell the difference
- * between "this feature is off for you" and "this route does not exist";
- * both are a 404. Otherwise the 403 itself advertises the feature.
- */
+/** Authenticated game operations remain gated by the kill switch and profile. */
 export async function requirePlayAccess(): Promise<PlayAccessGrant | null> {
   // Collapsing every failure into one silent null is correct for users and
   // miserable for whoever is trying to work out why their own account 404s.
@@ -158,8 +147,8 @@ export async function requirePlayAccess(): Promise<PlayAccessGrant | null> {
       `play_enabled flag is off for this host (local=${await isLocalRequest()})`,
     )
   }
-  if (!(await isWhitelisted(supabase, userId))) {
-    return deny(`user ${userId} is not in play_access`)
+  if (!(await isPlayAccount(supabase, userId))) {
+    return deny(`user ${userId} has no player profile`)
   }
 
   return { userId, supabase }

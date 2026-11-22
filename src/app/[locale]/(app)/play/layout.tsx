@@ -1,5 +1,5 @@
 // The signup surface is public while Play is enabled. All game data and
-// account setup remain behind requirePlayAccess and the existing whitelist.
+// account setup remain behind requirePlayAccess and an authenticated profile.
 
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'

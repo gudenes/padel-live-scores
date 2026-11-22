@@ -12,6 +12,8 @@ import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import SocialLinks from '@/app/components/SocialLinks'
 import { withTimeout } from '@/lib/with-timeout'
+import PredictLaunchBanner from '@/components/home/PredictLaunchBanner'
+import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
 import { ReferralToast } from '@/components/ReferralToast'
@@ -303,7 +305,7 @@ function V3HomePageInner() {
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(60) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
-        wrap(fetchClusteredNews(supabase, { limit: 20 }), 'home:articles'),
+        wrap(PREDICT_LAUNCH_ENABLED ? Promise.resolve([]) : fetchClusteredNews(supabase, { limit: 20 }), 'home:articles'),
         // Tournaments carousel — 3 queries: window of tournaments, per-
         // tournament match count for today, and finals matches finished
         // in the last 48h so we can attach champion treatment to crowned
@@ -581,6 +583,7 @@ function V3HomePageInner() {
   if (loading) {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto' }}>
+        {PREDICT_LAUNCH_ENABLED && <><GlobalHeader /><PredictLaunchBanner /></>}
         <BrandedLoader hints={[...LOADER_HINTS.home]} />
       </div>
     )
@@ -616,6 +619,7 @@ function V3HomePageInner() {
       {/* ── Header — extracted to GlobalHeader so Tournaments and
               Rankings can share the same chrome. */}
       <GlobalHeader />
+      <PredictLaunchBanner />
 
       <InviteWelcomeBanner />
       <ReferralToast />
@@ -681,7 +685,7 @@ function V3HomePageInner() {
           live on the dedicated /feed page. Home now leads with the
           peek-style news carousel; users who want videos tap into
           the Feed bottom-nav tab. */}
-      {latestNews.length > 0 && (
+      {!PREDICT_LAUNCH_ENABLED && latestNews.length > 0 && (
         <>
           <SectionTitle action={tHome('seeAll')} href="/feed">{tHome('latestNews')}</SectionTitle>
           <HighlightsPreview highlights={[]} news={latestNews} />

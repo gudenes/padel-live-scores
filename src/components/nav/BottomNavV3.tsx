@@ -1,4 +1,5 @@
 'use client'
+import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 // src/components/nav/BottomNavV3.tsx
 // Redesigned 3-tab bottom nav: Scores / Home (brand icon) / Feed
 // Uses PadelNachos brand language: chunky shapes, green active state.
@@ -332,7 +333,7 @@ export default function BottomNavV3() {
       try {
         const [liveRes, newsRes, rankingsRes] = await Promise.all([
           supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'live'),
-          supabase.from('articles').select('*', { count: 'exact', head: true })
+          PREDICT_LAUNCH_ENABLED ? Promise.resolve({count:0}) : supabase.from('articles').select('*', { count: 'exact', head: true })
             .eq('status', 'active')
             .gt('published_at', feedLastVisit),
           // Latest ranking week probe. Reads players.ranking_date (publicly
@@ -463,7 +464,7 @@ export default function BottomNavV3() {
                     + a count of articles since that timestamp. The
                     badge clears when the user actually visits /feed
                     (the feed page calls markFeedVisited on mount). */}
-                {tab.key === 'home' && newsCount > 0 && (
+                {!PREDICT_LAUNCH_ENABLED && tab.key === 'home' && newsCount > 0 && (
                   <div className="v3-nav-badge">{newsCount > 9 ? '9+' : newsCount}</div>
                 )}
                 {/* Rank-updated dot on Ranking — appears when a fresh

@@ -1,7 +1,7 @@
 // Leaderboard: realised net winnings from settled plays. Wallet spending is irrelevant.
-import {leaderboardWeek} from '@/lib/leaderboard-week'
+import {leaderboardWeek, activeLeaderboardWeeks, selectLeaderboardWeek} from '@/lib/leaderboard-week'
 import { settledNetWinnings } from '@/lib/settled-net-winnings'
-import { localSimulationLeaders } from '@/lib/local-simulation-leaders'
+import { loadSimulationLeaderboard } from '@/lib/local-simulation-leaders'
 import { paginatedSelect } from '@/lib/db-paginate'
 import { requirePlayAccess } from '@/lib/play-access'
 import {
@@ -46,7 +46,23 @@ export async function GET(req: Request) {
   }
   const seasonId = season?.id ?? null
   const rawWeek=Number(new URL(req.url).searchParams.get('week')??0)
-  const weekOffset=Number.isInteger(rawWeek)?Math.max(0,Math.min(520,rawWeek)):0
+  const requestedWeek=Number.isInteger(rawWeek)?Math.max(0,Math.min(520,rawWeek)):0
+  let simulationData: Awaited<ReturnType<typeof loadSimulationLeaderboard>>
+  try { simulationData = await loadSimulationLeaderboard(req, supabase, period === 'week') }
+  catch { return Response.json({ error: 'simulation_unavailable' }, { status: 503 }) }
+  let weekNavigation = { weekOffset: requestedWeek, previousWeek: null as number | null, nextWeek: null as number | null }
+  if (period === 'week') {
+    // Both a retained position and a payout are required for a human score.
+    const played = await paginatedSelect<{ settled_at: string }>((start, end) => supabase.from('markets')
+      .select('settled_at,market_positions!inner(),market_payouts!inner()')
+      .eq('status', 'settled').not('settled_at', 'is', null)
+      .gte('settled_at', leaderboardWeek(520).start).order('id').range(start, end), { what: 'active leaderboard weeks' })
+    const trades = await paginatedSelect<{ created_at: string }>((start, end) => supabase.from('market_trades')
+      .select('created_at').eq('direction', 'buy').gte('created_at', leaderboardWeek(520).start)
+      .order('id').range(start, end), { what: 'leaderboard participation history' })
+    weekNavigation = selectLeaderboardWeek(activeLeaderboardWeeks([...played.map(m => m.settled_at), ...trades.map(t => t.created_at), ...simulationData.activityDates]), requestedWeek)
+  }
+  const { weekOffset } = weekNavigation
   const week=leaderboardWeek(weekOffset)
 
   // Scope by result time, not purchase time. Current payouts are authoritative,
@@ -86,12 +102,10 @@ export async function GET(req: Request) {
   const humanRanked = [...winnings].map(([userId,netWinnings])=>({userId,netWinnings}))
     .sort((a,b)=>b.netWinnings-a.netWinnings || a.userId.localeCompare(b.userId))
 
-  let simulations: Awaited<ReturnType<typeof localSimulationLeaders>> = []
-  try { simulations = await localSimulationLeaders(req, supabase, period, seasonId, weekOffset) }
-  catch { return Response.json({ error: 'simulation_unavailable' }, { status: 503 }) }
+  const simulations = simulationData.leaders(period, seasonId, weekOffset)
   const bots = new Map(simulations.map(b => [b.userId, b]))
   const ranked = [...humanRanked, ...simulations].sort((a,b) => b.netWinnings-a.netWinnings || a.userId.localeCompare(b.userId))
-  if (ranked.length === 0) return Response.json({ rows: [], me: null })
+  if (ranked.length === 0) return Response.json({ ...weekNavigation, rows: [], me: null })
 
   const myIndex = ranked.findIndex((r) => r.userId === userId)
   const humanRanks = new Map(humanRanked.map((entry, index) => [entry.userId, index + 1]))
@@ -125,6 +139,7 @@ export async function GET(req: Request) {
 
   return Response.json({
     period,
+    ...weekNavigation,
     hasSimulation: simulations.length > 0,
     rows: ranked.map(toRow),
     // `me` carries the caller's TRUE rank, computed over the full ranking —

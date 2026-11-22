@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   skipProxyUrlNormalize: process.env.NODE_ENV === 'development',
   allowedDevOrigins: ["192.168.1.169"],
   experimental: {
+    webpackMemoryOptimizations: process.env.NODE_ENV === 'development',
     // Shared NodeNext modules use emitted .js paths in their TypeScript source.
     extensionAlias: { '.js': ['.js', '.ts', '.tsx'] },
   },

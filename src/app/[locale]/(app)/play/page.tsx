@@ -72,11 +72,13 @@ export default function PlayPage() {
 
   const [resultMarket,setResultMarket]=useState<string|null>(null)
   const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
+  const landingChosen = useRef(false)
   const [screen, setScreen] = useState<Screen>('deck')
   const [pending, setPending] = useState<{ market: PlayMarket; side: Side; stake: number } | null>(null)
   // The detail sheet is an OVERLAY, not a screen: `screen` stays on 'deck' and
   // the deck index does not move, so closing it returns the card untouched.
   const [detail, setDetail] = useState<PlayMarket | null>(null)
+  const [feedTrade, setFeedTrade] = useState<ConfirmedTrade | null>(null)
   const [confirmed, setConfirmed] = useState<ConfirmedTrade | null>(null)
   const invite=useInvitePrompt(user?.id,!!confirmed||!!detail||screen==='trade'||firstSuccess||!!onboarding.progress&&onboarding.progress.step!=='done',onboarding.preview)
   const [submitting, setSubmitting] = useState(false)
@@ -89,10 +91,11 @@ export default function PlayPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const match = params.get('match')
-    if (match && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(match)) setLinkedMatch(match)
+    if (match && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(match)) { setLinkedMatch(match); landingChosen.current = true }
     const result=params.get('result');if(result&&(result==='all'||/^[a-f0-9-]{36}$/i.test(result)))setResultMarket(result)
     const view = params.get('view')
     if (view === 'mine' || view === 'leaders') {
+      landingChosen.current = true
       setScreen(view)
       if (view === 'leaders') setLeadersOpened(true)
     }
@@ -102,8 +105,8 @@ export default function PlayPage() {
   // ── Data ──────────────────────────────────────────────────────
   // `locale` is forwarded because the market question, its context line and
   // the pair names are localised server-side from market_templates.question_i18n.
-  const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarketOverview, true, 30_000)
-  const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe, true, 30_000)
+  const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarketOverview, true, 30_000, true)
+  const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe, true, 30_000, true)
   const activity = useApiResource(`/api/play/activity?locale=${locale}`, parseActivity, screen === 'activity')
   // The leaderboard is the one screen most users never open; don't spend a
   // request on it until they do.
@@ -113,11 +116,20 @@ export default function PlayPage() {
     leadersOpened,
   )
 
-  // A fresh /api/play/me supersedes the balance the trade route reported.
-  // Gated on `status === 'ready'` rather than on `me.data` identity: the
-  // refetch nulls `data` while it is in flight, and clearing the override
-  // then would flash the balance chip to 0 between the trade and the
-  // response landing.
+  // Resolve the default once. Direct links and manual navigation win.
+  useEffect(() => {
+    if (landingChosen.current || markets.status !== 'ready' || onboarding.loading) return
+    // Let new players complete their introduction before choosing the landing tab.
+    if (onboarding.progress && onboarding.progress.step !== 'done') return
+    landingChosen.current = true
+    if (markets.data?.totalAvailable === 0) {
+      setScreen('leaders')
+      setLeadersOpened(true)
+    }
+  }, [markets.status, markets.data, onboarding.loading, onboarding.progress])
+
+  // Keep the confirmed balance until the refreshed player payload arrives.
+  // Background reloads retain the previous payload to preserve the feed.
   useEffect(() => {
     if (me.status === 'ready') setBalanceAfterTrade(null)
   }, [me.status, me.data])
@@ -130,6 +142,7 @@ export default function PlayPage() {
 
   // ── Screen switching ──────────────────────────────────────────
   const goto = useCallback((key: SubNavKey) => {
+    landingChosen.current = true
     if (key === 'leaders') setLeadersOpened(true)
     // Leaving the deck dismisses the detail sheet — coming back to a sheet the
     // user navigated away from would be a surprise.
@@ -202,14 +215,16 @@ export default function PlayPage() {
 
         void invite.afterPrediction()
         if(onboarding.progress?.step==='prediction'){setFirstSuccess(true);void onboarding.advance('done').catch(()=>{})}
-        setConfirmed({
+        const completedTrade: ConfirmedTrade = {
           market: pending.market,
           side,
           question: pending.market.question,
           cost: payload.cost ?? guacas,
           shares: payload.shares ?? 0,
           avgPrice: payload.avgPrice ?? 0,
-        })
+        }
+        setConfirmed(completedTrade)
+        setFeedTrade(completedTrade)
         if (typeof payload.balance === 'number') setBalanceAfterTrade(payload.balance)
         setPending(null)
         // The trade moved the price — the deck's copy of it is now stale.
@@ -288,6 +303,7 @@ export default function PlayPage() {
             <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
               key={marketFilter}
               markets={list}
+              completedTrade={feedTrade}
               positions={onboarding.preview?[]:me.data?.positions ?? []}
               onViewPositions={() => goto('mine')}
               onChoose={(market, side) => onCommit(market, side, onboarding.progress?.step==='prediction'?Math.min(50,balance):DEFAULT_STAKE)}

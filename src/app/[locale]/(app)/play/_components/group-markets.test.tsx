@@ -48,3 +48,21 @@ it('hides choices only for the invested question and keeps the other question pl
  expect(screen.getByRole('button',{name:/^Details · Will pair two win/})).toBeTruthy()
  expect(screen.getByRole('button',{name:/^Yes · Will it go/})).toBeTruthy()
 })
+
+it('continues to the next unplayed card after a successful refreshed play',()=>{
+ const ms=markets().slice(3)
+ const trade={market:ms[0],side:'yes',question:ms[0].question,cost:100,shares:200,avgPrice:.5} as const
+ const props={markets:ms,positions:[] as any[],onChoose:vi.fn(),onDetail:vi.fn(),onViewPositions:vi.fn()}
+ const view=render(<NextIntlClientProvider locale="en" messages={messages}><MarketFeed {...props}/></NextIntlClientProvider>)
+ const feed=screen.getByRole('region')
+ feed.scrollTop=500
+ vi.spyOn(feed,'getBoundingClientRect').mockReturnValue({top:100} as DOMRect)
+ const next=feed.querySelector('[data-feed-group="market:season2"]')!
+ vi.spyOn(next,'getBoundingClientRect').mockReturnValue({top:314} as DOMRect)
+ fireEvent.click(screen.getAllByRole('button',{name:/Yes/})[0])
+ view.rerender(<NextIntlClientProvider locale="en" messages={messages}><MarketFeed {...props} completedTrade={trade}/></NextIntlClientProvider>)
+ expect(feed.scrollTop).toBe(500)
+ view.rerender(<NextIntlClientProvider locale="en" messages={messages}><MarketFeed {...props} positions={[{marketId:'season1',side:'yes',shares:200,costBasis:100} as any]} completedTrade={trade}/></NextIntlClientProvider>)
+ expect(feed.scrollTop).toBe(700)
+ expect(screen.getByRole('region')).toBe(feed)
+})

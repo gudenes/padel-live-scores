@@ -9,19 +9,20 @@ beforeEach(() => { vi.stubEnv('NODE_ENV','production'); vi.clearAllMocks() })
 afterEach(() => vi.unstubAllEnvs())
 function client(enabled: boolean, invited: boolean) {
  const flag = {data:{enabled,enabled_local:true},error:null}
- const list = {data:invited ? {user_id:'owner'} : null,error:null}
+ const list = {data:invited ? {id:'owner'} : null,error:null}
  return {from: vi.fn((table:string) => {const q={select:()=>q,eq:()=>q,maybeSingle:async()=>table==='feature_flags'?flag:list};return q})}
 }
 it('production never selects the local flag, including a localhost Host',async()=>{
  expect(await isPlayEnabled(client(false,true) as never)).toBe(false)
 })
-it('denies uninvited accounts even with the production switch on',async()=>{
+it('denies accounts without a profile even with the production switch on',async()=>{
  mock.auth.mockResolvedValue({user:{id:'lia'}});mock.client.mockReturnValue(client(true,false))
  expect(await requirePlayAccess()).toBeNull()
 })
-it('allows the invited account only with the production switch on',async()=>{
+it('allows every valid account without querying the invitation allowlist',async()=>{
  mock.auth.mockResolvedValue({user:{id:'owner'}});mock.client.mockReturnValue(client(true,true))
  expect((await requirePlayAccess())?.userId).toBe('owner')
+ expect(mock.client.mock.results[0].value.from).not.toHaveBeenCalledWith('play_access')
  mock.client.mockReturnValue(client(false,true));expect(await requirePlayAccess()).toBeNull()
 })
 it('blocks cross-site and missing-origin trades while allowing the public site behind a proxy',()=>{
@@ -30,3 +31,5 @@ it('blocks cross-site and missing-origin trades while allowing the public site b
  for(const origin of [undefined,'https://evil.example','http://localhost:3012']) expect(isTrustedPlayWrite(req(origin))).toBe(false)
  expect(isTrustedPlayWrite(req('https://padelnachos.com','text/plain'))).toBe(false)
 })
+
+it('denies anonymous game operations',async()=>{mock.auth.mockResolvedValue(null);expect(await requirePlayAccess()).toBeNull();expect(mock.client).not.toHaveBeenCalled()})

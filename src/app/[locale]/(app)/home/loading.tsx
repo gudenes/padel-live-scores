@@ -1,3 +1,4 @@
+import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 // Per-route loading skeleton shown during navigation to /home.
 // Mirrors the first-paint geometry of HomePage so the swap into real
 // content doesn't shift the layout.
@@ -47,14 +48,13 @@ export default function HomeLoading() {
       </div>
 
       {/* News peek strip */}
-      <div style={{ padding: '12px 16px 4px' }}>
+      {!PREDICT_LAUNCH_ENABLED && <div style={{ padding: '12px 16px 4px' }}>
         <SkeletonBlock width={100} height={14} />
         <div style={{ marginTop: 10, display: 'flex', gap: 10, overflow: 'hidden' }}>
           <SkeletonCard height={120} style={{ minWidth: 240 }} />
           <SkeletonCard height={120} style={{ minWidth: 240 }} />
         </div>
-      </div>
-
+      </div>}
       {/* Bottom-nav clearance */}
       <div style={{ height: 100 }} />
     </SkeletonPage>
