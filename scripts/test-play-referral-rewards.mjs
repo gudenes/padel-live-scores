@@ -17,6 +17,7 @@ async function setup(){
  INSERT INTO market_seasons VALUES('${id(9)}','active',10000);
  INSERT INTO play_access(user_id) VALUES('${id(1)}');`)
  await db.exec(await readFile(new URL('../supabase/migrations/20261122210000_play_referral_rewards.sql',import.meta.url),'utf8'))
+ await db.exec(await readFile(new URL('../supabase/migrations/20261122223000_play_referrals_independent_of_access.sql',import.meta.url),'utf8'))
  return db
 }
 const accept=(db,user=2,host=1)=>db.query('SELECT play_accept_friend_invitation($1,$2) AS added',[id(user),id(host)])
@@ -32,11 +33,9 @@ test('both receive 500; retries, self invitations and re-grants cannot duplicate
  assert.equal((await db.query('SELECT count(*)::int AS n FROM play_referral_rewards')).rows[0].n,1)
  }finally{await db.close()}
 })
-test('existing members and invalid inviters receive no bonus',async()=>{
+test('invalid inviters cannot grant rewards',async()=>{
  const db=await setup();try{
  await assert.rejects(accept(db,2,99),/invalid_invitation/)
- await db.exec(`INSERT INTO play_access(user_id) VALUES('${id(2)}')`)
- assert.equal((await accept(db)).rows[0].added,false)
  assert.equal((await db.query('SELECT count(*)::int AS n FROM guaca_ledger')).rows[0].n,0)
  }finally{await db.close()}
 })
@@ -60,3 +59,20 @@ test('failure rolls back access, connections and rewards together',async()=>{
 })
 
 test('public accounts can invite without an allowlist grant',async()=>{const db=await setup();try{assert.equal((await accept(db,2,3)).rows[0].added,true);assert.equal((await db.query("SELECT count(*)::int AS n FROM guaca_ledger WHERE kind='referral'")).rows[0].n,2)}finally{await db.close()}})
+
+test('legacy access still gets both bonuses and mutual follows exactly once',async()=>{
+ const db=await setup();try{
+  await db.exec(`INSERT INTO play_access(user_id,granted_by,note) VALUES('${id(2)}','user-request','Onboarding and wardrobe device testing');
+  INSERT INTO user_guaca_balance(user_id,season_id,balance) VALUES('${id(1)}','${id(9)}',9950),('${id(2)}','${id(9)}',9950)`)
+  assert.equal((await accept(db)).rows[0].added,true)
+  assert.deepEqual((await db.query('SELECT balance FROM user_guaca_balance ORDER BY user_id')).rows,[{balance:10450},{balance:10450}])
+  assert.deepEqual((await db.query('SELECT follower_id,following_id FROM play_member_follows ORDER BY follower_id')).rows,[{follower_id:id(1),following_id:id(2)},{follower_id:id(2),following_id:id(1)}])
+  assert.equal((await db.query(`SELECT granted_by FROM play_access WHERE user_id='${id(2)}'`)).rows[0].granted_by,'user-request')
+  await db.exec(`DELETE FROM play_member_follows WHERE follower_id='${id(2)}'`)
+  assert.equal((await accept(db)).rows[0].added,false)
+  assert.equal((await accept(db,2,3)).rows[0].added,false)
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM play_member_follows')).rows[0].n,1)
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM guaca_ledger WHERE kind='referral'")).rows[0].n,2)
+  assert.deepEqual((await db.query('SELECT balance FROM user_guaca_balance ORDER BY user_id')).rows,[{balance:10450},{balance:10450}])
+ }finally{await db.close()}
+})
