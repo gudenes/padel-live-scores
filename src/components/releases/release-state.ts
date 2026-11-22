@@ -1,4 +1,4 @@
-export const RELEASE_KEY = 'pn_release_live_race_match_points_2026_11'
+export const RELEASE_KEY = 'pn_release_live_race_match_points_2026_11_v2'
 // New campaign: one impression per browser, across browsing screens.
 export const RELEASE_START = Date.parse('2026-11-22T00:00:00Z')
 export const RELEASE_END = Date.parse('2026-12-07T00:00:00Z')
