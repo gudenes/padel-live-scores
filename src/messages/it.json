@@ -2587,6 +2587,7 @@
     "skip": "Salta la guida"
   },
   "smartSchedule": {
+    "nextToPlayShort": "PROSSIMO",
     "nextToPlay": "PROSSIMO IN CAMPO",
     "estimatedIn": "Stimato tra {min}–{max} min",
     "afterPrevious": "Dopo la partita precedente",
@@ -2670,7 +2671,8 @@
     "updated": "Consultato"
   },
   "raceStandings": {
-    "pointsVisual": {"title": "Punti di questa partita", "winner": "Vincitore", "loser": "Perdente", "perPlayer": "per giocatore", "secured": "Minimo garantito vincendo", "finish": "Totale all’eliminazione", "base": "Punti base di una partita conclusa normalmente, prima dei bonus. Ritiri e walkover possono differire.", "race": "Sono totali del torneo, non punti extra per vittoria. Il guadagno nella Race dipende dai 22 migliori risultati.", "qualifying": "I punti di qualificazione dipendono dal turno e dal tabellone. La cifra del vincitore è il minimo per avanzare e completare normalmente il torneo. Ritiri e ripescaggi possono modificare i punti.", "qualifyingBonus": "Include il bonus di qualificazione di {points} punti.", "winBadge": "Vittoria: {points} pt", "roundExit": "Eliminazione in questo turno: {points} pt per giocatore.", "advance": "Una vittoria permette di avanzare e garantisce il minimo del turno successivo. Questi punti non si sommano."},
+    "bracket": {"title": "Turni e punti", "thisRound": "Questa partita", "win": "Vittoria", "lose": "Sconfitta", "exit": "Fine del torneo", "nextRound": "Turno successivo", "mainDraw": "Tabellone principale", "secured": "Minimo garantito", "total": "Totale all’uscita", "rounds": {"W": "Campioni", "F": "Finale", "SF": "Semifinale", "QF": "Quarti di finale", "R16": "R16", "R32": "R32", "R64": "R64", "R128": "R128"}},
+    "pointsVisual": {"shortNote": "Totali del torneo per giocatore, non punti aggiunti a ogni vittoria.", "title": "Punti di questa partita", "winner": "Vincitore", "loser": "Perdente", "perPlayer": "per giocatore", "secured": "Minimo garantito vincendo", "finish": "Totale all’eliminazione", "base": "Punti base di una partita conclusa normalmente, prima dei bonus. Ritiri e walkover possono differire.", "race": "Sono totali del torneo, non punti extra per vittoria. Il guadagno nella Race dipende dai 22 migliori risultati.", "qualifying": "I punti di qualificazione dipendono dal turno e dal tabellone. La cifra del vincitore è il minimo per avanzare e completare normalmente il torneo. Ritiri e ripescaggi possono modificare i punti.", "qualifyingBonus": "Include il bonus di qualificazione di {points} punti.", "winBadge": "Vittoria: {points} pt", "roundExit": "Eliminazione in questo turno: {points} pt per giocatore.", "advance": "Una vittoria permette di avanzare e garantisce il minimo del turno successivo. Questi punti non si sommano."},
     "matchPointsHelp": "Vincitore: {points} punti del torneo per giocatore, prima dei bonus. È il totale del torneo, non punti extra per ogni partita. Il guadagno nella Race dipende dai 22 migliori risultati.",
     "updated": "Aggiornato alle {time}",
     "pendingCount": "{count} giocatori in attesa di verifica",

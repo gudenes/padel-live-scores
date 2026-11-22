@@ -1,6 +1,6 @@
 import { matchRoundPoints, qualifyingSchedule } from './engine'
 
-export interface MatchPoints { winner: number; loser: number; qualifying?: boolean; qualificationBonus?: number }
+export interface MatchPoints { winner: number; loser: number; qualifying?: boolean; qualificationBonus?: number; currentRound?: string; nextRound?: string }
 export interface DrawRow { id: string; round: string | null; round_canonical: string | null; category: string | null }
 
 /** Full tournament draw, never the subset of matches on a selected day.
@@ -46,6 +46,7 @@ export function qualifyingPoints(level: string, season: string, rows: DrawRow[])
     for (const r of q) result[r.id] = {
       winner: r.n === last ? mainFloor + bonus : exitPoints(r.n + 1),
       loser: exitPoints(r.n), qualifying: true,
+      currentRound: `Q${r.n}`, nextRound: r.n === last ? firstMain : `Q${r.n + 1}`,
       qualificationBonus: r.n === last ? bonus : 0,
     }
   }

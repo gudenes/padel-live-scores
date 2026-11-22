@@ -1,73 +1,66 @@
 'use client'
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import MatchPointsBracket from './MatchPointsBracket'
 import PressButton, { PRESS_PRESETS } from './PressButton'
 
-export default function MatchPointsBadge({ points, loserPoints, qualifying = false, qualificationBonus = 0 }: { points: number; loserPoints: number; qualifying?: boolean; qualificationBonus?: number }) {
+export default function MatchPointsBadge({ points, loserPoints, qualifying = false, qualificationBonus = 0, round, nextRound }: { round?: string | null; nextRound?: string; points: number; loserPoints: number; qualifying?: boolean; qualificationBonus?: number }) {
   const t = useTranslations('raceStandings')
+  const common = useTranslations('common')
   const id = useId()
   const trigger = useRef<HTMLButtonElement | null>(null)
   const popup = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
-  useLayoutEffect(() => {
-    if (!position || !popup.current) return
-    const rect = popup.current.getBoundingClientRect()
-    const top = Math.max(12, Math.min(position.top, window.innerHeight - rect.height - 12))
-    if (top !== position.top) setPosition({ ...position, top })
-  }, [position])
+  const [open, setOpen] = useState(false)
+  const isOpen = open
   useEffect(() => {
-    if (!position) return
+    if (!isOpen) return
+    popup.current?.querySelector('button')?.focus()
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = overflow }
+  }, [isOpen])
+  useEffect(() => {
+    if (!open) return
     const dismiss = (event: PointerEvent) => {
-      if (!popup.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setPosition(null)
+      if (!popup.current?.parentElement?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setOpen(false)
     }
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setPosition(null); trigger.current?.focus() }
+      if (event.key === 'Escape') { setOpen(false); trigger.current?.focus() }
     }
-    const close = (event: Event) => { if (!(event.target instanceof Node) || !popup.current?.contains(event.target)) setPosition(null) }
     document.addEventListener('pointerdown', dismiss)
     document.addEventListener('keydown', escape)
-    window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
     return () => {
       document.removeEventListener('pointerdown', dismiss)
       document.removeEventListener('keydown', escape)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
     }
-  }, [position])
+  }, [open])
   return <>
     <PressButton {...PRESS_PRESETS.chunkyInline} type="button" data-match-points={points}
-      aria-expanded={!!position} aria-describedby={position ? id : undefined}
-      aria-label={`${qualifying ? t('pointsVisual.winBadge', { points }) : `${points} pts`} — ${t('how')}`}
+      aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="dialog"
+      aria-label={`${points} pts — ${t('how')}`}
       style={{ padding: '2px 5px', fontSize: 9, lineHeight: '12px', fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}
       onClick={event => {
         event.preventDefault(); event.stopPropagation()
         trigger.current = event.currentTarget
-        const rect = event.currentTarget.getBoundingClientRect()
-        const width = Math.min(320, window.innerWidth - 24)
-        setPosition(position ? null : { left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 180)) })
+        setOpen(!open)
       }}
-    >{qualifying ? t('pointsVisual.winBadge', { points }) : `${points} pts`} ⓘ</PressButton>
-    {position && createPortal(<div ref={popup} id={id} role="tooltip"
-      onClick={event => { event.preventDefault(); event.stopPropagation() }}
-      style={{ position: 'fixed', ...position, zIndex: 10000, width: 'min(320px, calc(100vw - 24px))', maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto', boxSizing: 'border-box', padding: 14, borderRadius: 8, border: '1px solid #7ed32155', background: '#1a1a1d', color: '#e2e8f0', boxShadow: '0 8px 24px #0008', fontSize: 12, lineHeight: 1.5 }}
+    >{`${points} pts`} ⓘ</PressButton>
+    {open && createPortal(<div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'grid', placeItems: 'center', padding: 12, background: '#0008', backdropFilter: 'blur(2px)' }} onClick={event => { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() }}>
+    <div ref={popup} id={id} role="dialog" aria-modal="true" aria-label={t('pointsVisual.title')}
+      onClick={event => { event.stopPropagation() }}
+      onKeyDown={event => { if (event.key !== 'Tab') return; const controls = popup.current?.querySelectorAll<HTMLElement>('button, summary'); if (!controls?.length) return; const first = controls[0]; const last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() } }}
+      style={{ position: 'relative', zIndex: 10000, width: 'min(320px, calc(100vw - 24px))', maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto', boxSizing: 'border-box', padding: 14, borderRadius: 0, clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)', border: '2px solid #7ed32155', background: '#1a1a1d', color: '#e2e8f0', boxShadow: '0 8px 24px #0008', fontSize: 12, lineHeight: 1.5 }}
     >
-      <strong style={{ fontSize: 14 }}>{t('pointsVisual.title')}</strong>
-      {qualifying && <div style={{ marginTop: 8, padding: '8px 10px', background: '#ffffff08', borderRadius: 6 }}><strong>{t('pointsVisual.roundExit', { points: loserPoints })}</strong><p style={{ margin: '4px 0 0', color: '#a2aab6', fontSize: 11 }}>{t('pointsVisual.advance')}</p></div>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
-        {([{ winner: true, amount: points }, { winner: false, amount: loserPoints }]).map(({ winner, amount }) => <div key={String(winner)} style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, background: winner ? '#7ed32114' : '#ffffff08', border: `1px solid ${winner ? '#7ed32144' : '#ffffff16'}` }}>
-          <PairIllustration winner={winner} />
-          <div style={{ fontWeight: 800, color: winner ? '#a2eb4d' : '#cbd5e1' }}>{t(winner ? 'pointsVisual.winner' : 'pointsVisual.loser')}</div>
-          <div style={{ fontSize: 26, lineHeight: 1.2, fontWeight: 900, marginTop: 4 }}>{amount}<span style={{ fontSize: 11, marginLeft: 3 }}>pts</span></div>
-          <div style={{ fontSize: 10, color: '#a2aab6' }}>{t('pointsVisual.perPlayer')}</div>
-          <div style={{ fontSize: 10, marginTop: 6, padding: '4px 5px', borderRadius: 4, fontWeight: winner ? 900 : 500, background: winner ? '#7ed32125' : 'transparent', color: winner ? '#b8f46d' : '#a2aab6' }}>{winner && '✓ '}{t(winner ? 'pointsVisual.secured' : 'pointsVisual.finish')}</div>
-        </div>)}
-      </div>
-      <p style={{ margin: '12px 0 6px', color: '#cbd5e1', fontSize: 11 }}>{t(qualifying ? 'pointsVisual.qualifying' : 'pointsVisual.base')}{qualifying && qualificationBonus > 0 && <> {t('pointsVisual.qualifyingBonus', { points: qualificationBonus })}</>}</p>
-      <div style={{ borderTop: '1px dotted #ffffff33', paddingTop: 8, color: '#a2aab6', fontSize: 11 }}>{t('pointsVisual.race')}</div>
-    </div>, document.body)}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><strong style={{ fontSize: 14 }}>{t('pointsVisual.title')}</strong><PressButton {...PRESS_PRESETS.chunkyInline} type="button" aria-label={common('close')} onClick={() => { setOpen(false); trigger.current?.focus() }} style={{ minWidth: 44, minHeight: 44, fontSize: 26 }}>×</PressButton></div>
+      <MatchPointsBracket round={round} nextRound={nextRound} qualifying={qualifying} points={points} loserPoints={loserPoints} />
+      <p style={{ margin: '10px 0 0', fontSize: 11, color: '#a2aab6' }}>{t('pointsVisual.shortNote')}</p>
+      <details style={{ marginTop: 8, fontSize: 11, color: '#a2aab6' }}><summary style={{ cursor: 'pointer', padding: '6px 0' }}>{t('how')}</summary>
+        <p>{t(qualifying ? 'pointsVisual.qualifying' : 'pointsVisual.base')}{qualifying && qualificationBonus > 0 && <> {t('pointsVisual.qualifyingBonus', { points: qualificationBonus })}</>}</p>
+        <p>{t('pointsVisual.race')}</p>
+      </details>
+    </div></div>, document.body)}
   </>
 }
 

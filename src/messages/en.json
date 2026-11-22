@@ -2619,6 +2619,7 @@
     "skip": "Skip guide"
   },
   "smartSchedule": {
+    "nextToPlayShort": "UP NEXT",
     "nextToPlay": "NEXT TO PLAY",
     "estimatedIn": "Est. in {min}–{max} min",
     "afterPrevious": "After previous match",
@@ -2702,7 +2703,8 @@
     "updated": "Retrieved"
   },
   "raceStandings": {
-    "pointsVisual": {"title": "Points for this match", "winner": "Winner", "loser": "Loser", "perPlayer": "per player", "secured": "Minimum secured with a win", "finish": "Tournament total on exit", "base": "Base points for a normally completed match, before qualifying or seed bonuses. Walkovers and withdrawals may differ.", "race": "These are tournament totals, not points added after every win. Your Race gain depends on your best 22 results.", "qualifying": "Qualifying points depend on the round and draw. The winner’s figure is the minimum for reaching the next round and completing the event normally. Withdrawals and lucky-loser entry can change the award.", "qualifyingBonus": "Includes the {points}-point qualification bonus.", "winBadge": "Win: {points} pts", "roundExit": "Exit in this round: {points} pts per player.", "advance": "A win advances you to the next round and secures its minimum total. These points are not added together."},
+    "bracket": {"title": "Round and points paths", "thisRound": "This match", "win": "Win", "lose": "Lose", "exit": "Tournament exit", "nextRound": "Next round", "mainDraw": "Main draw", "secured": "Minimum secured", "total": "Total on exit", "rounds": {"W": "Champions", "F": "Final", "SF": "Semifinal", "QF": "Quarterfinal", "R16": "R16", "R32": "R32", "R64": "R64", "R128": "R128"}},
+    "pointsVisual": {"shortNote": "Tournament totals per player, not points added per win.", "title": "Points for this match", "winner": "Winner", "loser": "Loser", "perPlayer": "per player", "secured": "Minimum secured with a win", "finish": "Tournament total on exit", "base": "Base points for a normally completed match, before qualifying or seed bonuses. Walkovers and withdrawals may differ.", "race": "These are tournament totals, not points added after every win. Your Race gain depends on your best 22 results.", "qualifying": "Qualifying points depend on the round and draw. The winner’s figure is the minimum for reaching the next round and completing the event normally. Withdrawals and lucky-loser entry can change the award.", "qualifyingBonus": "Includes the {points}-point qualification bonus.", "winBadge": "Win: {points} pts", "roundExit": "Exit in this round: {points} pts per player.", "advance": "A win advances you to the next round and secures its minimum total. These points are not added together."},
     "matchPointsHelp": "Winner: {points} tournament points per player, before bonuses. This is the tournament total, not an extra award for each match. Race gains depend on the best 22 results.",
     "updated": "Updated {time}",
     "pendingCount": "{count} players awaiting verification",

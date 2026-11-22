@@ -2,17 +2,45 @@
 
 import { useEffect, useRef, useState } from 'react'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
-import { PairIllustration } from '@/components/MatchPointsBadge'
+import MatchPointsBracket from '@/components/MatchPointsBracket'
 import styles from './ReleasePopup.module.css'
 import { getReleaseCopy, type ReleaseCopy } from './release-copy'
 import { getPathname } from '@/i18n/navigation'
 
+// Real portraits with illustrative points, not a second live standings feed.
+const raceExamples = [
+  {
+    "rank": 15,
+    "name": "Momo Gonzalez",
+    "avatar": "https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/d2da1e8c-5bdc-4c46-b5b5-9d680e167153.png",
+    "points": 3335,
+    "gain": 30
+  },
+  {
+    "rank": 16,
+    "name": "Gonzalo Alfonso",
+    "avatar": "https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/7934d376-5e86-44ca-a4ca-22b6fa971f4e.png",
+    "points": 3320,
+    "gain": 20
+  },
+  {
+    "rank": 17,
+    "name": "Lucas Campagnolo",
+    "avatar": "https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c45f4efa-96f7-4759-8ad4-dc5c842245ba.png",
+    "points": 3260,
+    "gain": 10
+  }
+]
+
 function RacePreview({ t }: { t: ReleaseCopy }) {
   return <div className={styles.preview}>
     <div className={styles.previewHeader}><strong>Race <span className={styles.raceLive}>● {t.live}</span></strong><small>{t.example}</small></div>
-    {[15, 16, 17].map((rank, index) => <div key={rank}>
-      {rank === 17 && <div className={styles.finals}>{t.cutoff}</div>}
-      <div className={styles.raceRow}><b>{rank}</b><span className={styles.playerAvatar}>{String.fromCharCode(65 + index)}</span><span>{t.player} {String.fromCharCode(65 + index)}</span><strong>{2500 - index * 20}<small>+{30 - index * 10}</small></strong></div>
+    {raceExamples.map(player => <div key={player.rank}>
+      {player.rank === 17 && <div className={styles.finals}>{t.cutoff}</div>}
+      <div className={styles.raceRow}><b>{player.rank}</b><span className={styles.playerAvatar}>
+        <span aria-hidden="true">{player.name.split(' ').map(word => word[0]).slice(0, 2).join('')}</span>
+        <img src={player.avatar} alt="" onError={event => { event.currentTarget.style.display = 'none' }} />
+      </span><span className={styles.playerName}>{player.name}</span><strong>{player.points}<small>+{player.gain}</small></strong></div>
     </div>)}
     <p className={styles.previewNote}>{t.provisional}</p>
   </div>
@@ -20,13 +48,9 @@ function RacePreview({ t }: { t: ReleaseCopy }) {
 function PointsPreview({ t }: { t: ReleaseCopy }) {
   return <div className={styles.preview}>
     <div className={styles.previewHeader}><strong>{t.qualifyingExample}</strong><small>{t.example}</small></div>
-    <div className={styles.pointsBadge}>{t.winPreview} ⓘ</div>
-    <div className={styles.pointsPanels}>{[true, false].map(winner => <div key={String(winner)}>
-      <PairIllustration winner={winner} />
-      <b>{winner ? t.winner : t.loser}</b><strong>{winner ? 15 : 0}<small> pts</small></strong><span>{t.perPlayer}</span>
-      {winner && <em>✓ {t.secured}</em>}
-    </div>)}</div>
-    <p className={styles.previewNote}>{t.pointsHint}</p>
+    <div className={styles.bracketPreview}>
+      <MatchPointsBracket round="Q1" nextRound="Q2" qualifying points={15} loserPoints={0} />
+    </div>
   </div>
 }
 
@@ -63,7 +87,7 @@ export default function ReleasePopup({ open, onClose, onShown, locale = 'en' }: 
     <div className={styles.scroll} ref={scroll}
       onTouchStart={event => { touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY } }}
       onTouchEnd={event => { const start = touchStart.current; touchStart.current = null; if (!start) return; const x = event.changedTouches[0].clientX - start.x; const y = event.changedTouches[0].clientY - start.y; if (Math.abs(x) > 60 && Math.abs(x) > Math.abs(y) * 1.5) selectSlide(isRace ? 1 : 0) }}>
-      <header className={styles.top}><p>{t.new}</p><PressButton {...PRESS_PRESETS.chunkyInline} type="button" onClick={onClose} aria-label={t.close} style={{ padding: '3px 9px', fontSize: 20 }}>×</PressButton></header>
+      <header className={styles.top}><p>{t.new}</p><PressButton {...PRESS_PRESETS.chunkyInline} type="button" onClick={onClose} aria-label={t.close} style={{ minWidth: 44, minHeight: 44, fontSize: 26 }}>×</PressButton></header>
       <h2 id="release-title" className={styles.title}>{isRace ? <>{t.titleRace}<br />{t.titleRace2}</> : <>{t.titlePoints}<br />{t.titlePoints2}</>}</h2>
       <div aria-live="polite" className={styles.srOnly}>{isRace ? t.updateRace : t.updatePoints}</div>
       {isRace ? <RacePreview t={t} /> : <PointsPreview t={t} />}

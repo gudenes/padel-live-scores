@@ -2587,6 +2587,7 @@
     "skip": "Saltar guía"
   },
   "smartSchedule": {
+    "nextToPlayShort": "SIGUIENTE",
     "nextToPlay": "SIGUIENTE EN PISTA",
     "estimatedIn": "Est. en {min}–{max} min",
     "afterPrevious": "Tras el partido anterior",
@@ -2670,7 +2671,8 @@
     "updated": "Consultado"
   },
   "raceStandings": {
-    "pointsVisual": {"title": "Puntos de este partido", "winner": "Ganador", "loser": "Perdedor", "perPlayer": "por jugador", "secured": "Mínimo asegurado al ganar", "finish": "Total al quedar eliminado", "base": "Puntos base de un partido completado normalmente, antes de bonos. Los abandonos y walkovers pueden variar.", "race": "Son totales del torneo, no puntos adicionales por victoria. La ganancia en la Race depende de los 22 mejores resultados.", "qualifying": "Los puntos de previa dependen de la ronda y el cuadro. La cifra del ganador es el mínimo por avanzar y completar el torneo normalmente. Abandonos y acceso como lucky loser pueden cambiar los puntos.", "qualifyingBonus": "Incluye el bono de clasificación de {points} puntos.", "winBadge": "Ganar: {points} pts", "roundExit": "Eliminación en esta ronda: {points} pts por jugador.", "advance": "Una victoria permite avanzar y asegura el mínimo de la siguiente ronda. Estos puntos no se suman entre sí."},
+    "bracket": {"title": "Rondas y puntos", "thisRound": "Este partido", "win": "Gana", "lose": "Pierde", "exit": "Fin del torneo", "nextRound": "Siguiente ronda", "mainDraw": "Cuadro principal", "secured": "Mínimo asegurado", "total": "Total al salir", "rounds": {"W": "Campeones", "F": "Final", "SF": "Semifinal", "QF": "Cuartos de final", "R16": "R16", "R32": "R32", "R64": "R64", "R128": "R128"}},
+    "pointsVisual": {"shortNote": "Totales del torneo por jugador, no puntos por cada victoria.", "title": "Puntos de este partido", "winner": "Ganador", "loser": "Perdedor", "perPlayer": "por jugador", "secured": "Mínimo asegurado al ganar", "finish": "Total al quedar eliminado", "base": "Puntos base de un partido completado normalmente, antes de bonos. Los abandonos y walkovers pueden variar.", "race": "Son totales del torneo, no puntos adicionales por victoria. La ganancia en la Race depende de los 22 mejores resultados.", "qualifying": "Los puntos de previa dependen de la ronda y el cuadro. La cifra del ganador es el mínimo por avanzar y completar el torneo normalmente. Abandonos y acceso como lucky loser pueden cambiar los puntos.", "qualifyingBonus": "Incluye el bono de clasificación de {points} puntos.", "winBadge": "Ganar: {points} pts", "roundExit": "Eliminación en esta ronda: {points} pts por jugador.", "advance": "Una victoria permite avanzar y asegura el mínimo de la siguiente ronda. Estos puntos no se suman entre sí."},
     "matchPointsHelp": "Ganador: {points} puntos del torneo por jugador, antes de bonos. Es el total del torneo, no un premio adicional por partido. La ganancia en la Race depende de los 22 mejores resultados.",
     "updated": "Actualizado a las {time}",
     "pendingCount": "{count} jugadores pendientes de verificación",

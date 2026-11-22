@@ -24,3 +24,16 @@
 .pointsPanels em { margin-top: 6px; color: #a2eb4d; font-size: 9px; font-weight: 750; font-style: normal; text-align: center; }
 .slideButtons { display: flex; gap: 8px; }
 .bottomActions { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 14px 0 5px; }
+
+/* Chunky panels; close stays visible even when the content scrolls. */
+.dialog { border-radius: 0; border: 2px solid #7ed32166; box-shadow: 6px 7px 0 #080808, 0 28px 90px #0009; }
+.top { position: sticky; top: -10px; z-index: 2; background: #171717; padding-block: 4px; }
+.preview { border-radius: 0; clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%); }
+.pointsPanels > div { border-radius: 0; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); }
+.title { font-size: 30px; margin-bottom: 12px; text-transform: uppercase; }
+.description { font-size: 13px; }
+
+.playerAvatar { position: relative; overflow: hidden; flex-shrink: 0; }
+.playerAvatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; background: #202020; }
+.playerName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracketPreview { padding: 0 12px 12px; }

@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 import React from 'react'
+import { NextIntlClientProvider } from 'next-intl'
+import es from '@/messages/es.json'
+import en from '@/messages/en.json'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 vi.mock('next/image', () => ({ default: ({ fill, priority, ...props }: Record<string, unknown>) => { void fill; void priority; return React.createElement('img', props) } }))
@@ -14,13 +17,17 @@ beforeEach(() => {
 afterEach(cleanup)
 it('preserves the locale on both CTAs and closes on CTA activation', () => {
   const close = vi.fn(); const shown = vi.fn()
-  render(<ReleasePopup open locale="es" onClose={close} onShown={shown} />)
+  render(<NextIntlClientProvider locale="es" messages={es}><ReleasePopup open locale="es" onClose={close} onShown={shown} /></NextIntlClientProvider>)
   expect(shown).toHaveBeenCalledOnce()
+  expect(screen.getByText('Momo Gonzalez')).toBeTruthy()
+  expect(screen.getByText('Gonzalo Alfonso')).toBeTruthy()
+  expect(screen.getByText('Lucas Campagnolo')).toBeTruthy()
   expect(screen.getByRole('link').getAttribute('href')).toBe('/es/rankings?type=race')
   fireEvent.click(screen.getByRole('button', { name: 'Siguiente: Puntos por partido' }))
   expect(screen.getByRole('link').getAttribute('href')).toBe('/es/matches')
-  expect(screen.getByText(/Ganar: 15 pts/)).toBeTruthy()
-  expect(screen.getByText(/Eliminación en Q1: 0 puntos/)).toBeTruthy()
+  expect(screen.getByText('Q2')).toBeTruthy()
+  expect(screen.getByText('Fin del torneo')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Cerrar novedades' })).toBeTruthy()
   fireEvent.click(screen.getByRole('link'))
   expect(close).toHaveBeenCalledOnce()
 })
@@ -28,7 +35,7 @@ it('restores body scrolling and focus when unmounted and handles Escape cancella
   const trigger = document.createElement('button'); document.body.append(trigger); trigger.focus()
   document.body.style.overflow = 'auto'
   const close = vi.fn()
-  const view = render(<ReleasePopup open onClose={close} />)
+  const view = render(<NextIntlClientProvider locale="en" messages={en}><ReleasePopup open onClose={close} /></NextIntlClientProvider>)
   expect(document.body.style.overflow).toBe('hidden')
   act(() => { document.querySelector('dialog')!.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true })) })
   expect(close).toHaveBeenCalledOnce()
