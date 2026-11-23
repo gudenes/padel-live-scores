@@ -1,0 +1,37 @@
+.joystick{position:relative;display:block;width:88px;height:88px;pointer-events:none;filter:drop-shadow(0 2px 1px #0006)}
+.layer{position:absolute;inset:0;display:block;background-image:url('/play/navigation/joystick-layers-v2.png');background-size:300% 100%;background-repeat:no-repeat}
+.base{background-position:0 0}
+.shaft{background-position:50% 0;left:3%;right:-3%;top:-2%;bottom:2%;transform-origin:49.2% 68.4%;transition:transform 420ms cubic-bezier(.22,1.65,.42,1)}
+.button{background-position:100% 0;left:4.7%;right:-4.7%;transform-origin:29.3% 60%;transition:transform 260ms cubic-bezier(.22,1.8,.42,1)}
+@media(hover:hover) and (pointer:fine){
+ :global(.v3-tab-play:hover) .shaft{transform:rotate(-5deg)}
+}
+:global(.v3-tab-play:active) .shaft,
+:global(.v3-tab-play[data-joystick-pressed="true"]) .shaft{transform:rotate(-14deg);transition:transform 90ms ease-out}
+:global(.v3-tab-play:active) .button,
+:global(.v3-tab-play[data-joystick-pressed="true"]) .button{transform:translateY(2px) scaleY(.7);transition:transform 70ms ease-out}
+@media(prefers-reduced-motion:reduce){
+ .shaft,.button{transition:none!important}
+ :global(.v3-tab-play:hover) .shaft{transform:none}
+ :global(.v3-tab-play:active) .shaft,:global(.v3-tab-play[data-joystick-pressed="true"]) .shaft{transform:none}
+}
+
+/* A short play gesture followed by a long quiet interval. The base never moves. */
+.attention .shaft{animation:idleShaft 16s ease-in-out 4s infinite}
+.attention .button{animation:idleButton 16s ease-in-out 4s infinite}
+@keyframes idleShaft{
+ 0%,12%,100%{transform:rotate(0)}
+ 2.5%{transform:rotate(-13deg)}
+ 5%{transform:rotate(8deg)}
+ 7.5%{transform:rotate(-8deg)}
+ 10%{transform:rotate(3deg)}
+}
+@keyframes idleButton{
+ 0%,3%,5%,7%,9%,100%{transform:translateY(0) scaleY(1)}
+ 4%,8%{transform:translateY(2px) scaleY(.7)}
+}
+/* A real press takes priority over the decorative gesture. */
+:global(.v3-tab-play:active) .layer,
+:global(.v3-tab-play[data-joystick-pressed="true"]) .layer{animation:none}
+@media(hover:hover) and (pointer:fine){:global(.v3-tab-play:hover) .layer{animation:none}}
+@media(prefers-reduced-motion:reduce){.attention .layer{animation:none!important}}

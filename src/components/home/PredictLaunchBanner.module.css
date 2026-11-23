@@ -14,3 +14,9 @@
 .cta{display:block;width:100%;text-decoration:none}
 .cta :global(.pn-press-face){display:flex;justify-content:center;align-items:center;gap:14px}
 @media(max-width:360px){.banner{margin:12px}.content{padding:16px}.content h2{font-size:26px}}
+
+.dialog{padding:0;border:1px solid #506b38;background:#10241b;color:#f4eedc;width:min(440px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;box-shadow:6px 7px 0 #080808,0 28px 90px #0009}
+.dialog::backdrop{background:#000b;backdrop-filter:blur(4px)}
+.dialog .banner{margin:0;border:0;box-shadow:none}
+@media(max-height:760px){.dialog .art>img{max-height:230px;object-fit:cover;object-position:center}.dialog .content{padding:14px 18px 18px}.dialog .content h2{font-size:26px}.dialog .prize{margin:10px 0}.dialog .disclaimer{margin:10px 0 14px}}
+.dialog{position:fixed;inset:0;margin:auto}

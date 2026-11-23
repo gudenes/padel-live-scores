@@ -12,7 +12,7 @@ import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 //     sessionStorage on tab switch and replayed when the user returns
 //     to a tab. Means swiping back to Feed lands where you left off.
 
-import Image from 'next/image'
+import JoystickSprite from './JoystickSprite'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
@@ -65,22 +65,6 @@ function FollowingIcon({ color }: { color: string }) {
   )
 }
 
-// Trophy icon for the Tournaments tab. Cup with handles + base —
-// universal sport-trophy semantic. Same line-stroke style as the
-// other nav icons.
-function TournamentsIcon({ color }: { color: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
-  )
-}
-
 // Ranking icon — three ascending bars. The cleanest universal "ranking"
 // pictogram; reads as "leaderboard" without the visual weight of a
 // medal/podium. Bars align to a baseline like a chart.
@@ -107,12 +91,7 @@ const INK_BAR_WIDTH = 48
 
 // ── Tabs ────────────────────────────────────────────────────────
 //
-// Five top-level tabs after the 2026-04-29 reshuffle:
-//   Home  ·  Matches  ·  Following  ·  Tournaments  ·  Ranking
-// Feed is no longer a top-level tab — users reach the news listing
-// via the home page's "Latest news" section. The unread-news badge
-// previously on the Feed tab moved onto Home (same useFeedLastVisit
-// data path, just a different display anchor).
+// Home · Matches · Ranking · Play (Following when Predict is disabled).
 type TabKey = 'home' | 'scores' | 'following' | 'play' | 'tournaments' | 'ranking'
 type NavLabelKey = 'home' | 'matches' | 'following' | 'play' | 'tournaments' | 'ranking'
 
@@ -126,9 +105,8 @@ interface NavTab {
 const TABS: NavTab[] = [
   { key: 'home',        labelKey: 'home',        href: '/home',        icon: null },
   { key: 'scores',      labelKey: 'matches',     href: '/matches',     icon: ScoresIcon },
-  { key: 'following',   labelKey: 'following',   href: '/following',   icon: FollowingIcon },
-  { key: 'tournaments', labelKey: 'tournaments', href: '/tournaments', icon: TournamentsIcon },
   { key: 'ranking',     labelKey: 'ranking',     href: '/rankings',    icon: RankingIcon },
+  { key: 'following',   labelKey: 'following',   href: '/following',   icon: FollowingIcon },
 ]
 
 // Play takes the slot Following holds — but only for users who actually
@@ -155,6 +133,7 @@ const SCROLL_STORAGE_PREFIX = 'bottomNavScroll:'
 export default function BottomNavV3() {
   const pathname = usePathname()
   const t = useTranslations('nav')
+  const [joystickPressed,setJoystickPressed]=useState(false)
   const [liveCount, setLiveCount] = useState(0)
   const [newsCount, setNewsCount] = useState(0)
   const feedLastVisit = useFeedLastVisit()
@@ -244,7 +223,7 @@ export default function BottomNavV3() {
       setPreviousActiveKey(null)
     }, ANIM_MS + 40)
     return () => window.clearTimeout(cleanupTimer)
-  }, [activeKey])
+  }, [activeKey, tabs])
 
   // Reposition the ink bar on viewport resize (e.g. orientation flip).
   // Reads the active tab's current rect — no animation, just a snap.
@@ -261,7 +240,7 @@ export default function BottomNavV3() {
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [activeKey])
+  }, [activeKey, tabs])
 
   // Per-tab scroll restoration. The save-side runs on the link's
   // onClick (BELOW) — we have to capture scrollY *before* Next.js
@@ -423,6 +402,10 @@ export default function BottomNavV3() {
               aria-label={t(tab.labelKey)}
               aria-current={isActive ? 'page' : undefined}
               onClick={saveCurrentScroll}
+              data-joystick-pressed={tab.key==='play'&&joystickPressed?true:undefined}
+              onKeyDown={tab.key==='play'?event=>{if(event.key==='Enter')setJoystickPressed(true)}:undefined}
+              onKeyUp={tab.key==='play'?()=>setJoystickPressed(false):undefined}
+              onBlur={tab.key==='play'?()=>setJoystickPressed(false):undefined}
               className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}${tab.key === 'play' ? ' v3-tab-play' : ''}`}
               style={{
                 display: 'flex',
@@ -441,7 +424,7 @@ export default function BottomNavV3() {
                   rather than a bolted-on FAB. */}
               {tab.key === 'play' ? (
                 <span className="v3-joystick-press" aria-hidden="true">
-                  <Image className="v3-joystick" src="/play/navigation/joystick-v1.webp" width={88} height={88} alt="" unoptimized />
+                  <JoystickSprite attention={!isActive}/>
                 </span>
               ) : (
               /* Icon wrapper */
@@ -599,14 +582,9 @@ const NAV_STYLES = `
      action, not a state, so it does not dim when another tab is
      active. Tokens come from globals.css; nothing new is invented. */
   .v3-nav-tab.v3-tab-play { justify-content:center; min-width:64px; min-height:54px; }
-  .v3-joystick-press { display:block; width:88px; height:88px; margin-top:-25px; margin-bottom:-5px; z-index:2; transition:transform .12s ease-out; }
-  .v3-joystick { display:block; width:88px; height:88px; object-fit:contain; transform-origin:50% 80%; filter:drop-shadow(0 2px 1px #0006); animation:v3-joystick-nudge 7s ease-in-out infinite; }
-  .v3-tab-play.v3-tab-active .v3-joystick { animation:none; transform:none; }
-  .v3-tab-play:active .v3-joystick-press { transform:translateY(4px) scale(.94); }
+  .v3-joystick-press { display:block; width:88px; height:88px; margin-top:-25px; margin-bottom:-5px; z-index:2; }
   .v3-tab-play:focus-visible { outline:2px solid #b6e688; outline-offset:-2px; }
   .v3-tab-play.v3-tab-active::after { content:''; position:absolute; bottom:4px; width:20px; height:3px; background:#7ed321; border-radius:2px; }
-  @keyframes v3-joystick-nudge { 0%,72%,100% { transform:rotate(0); } 78% { transform:rotate(-7deg) translateY(-2px); } 84% { transform:rotate(6deg) translateY(-2px); } 90% { transform:rotate(-3deg); } 96% { transform:rotate(0); } }
-  @media (prefers-reduced-motion:reduce) { .v3-joystick { animation:none; } .v3-joystick-press { transition:none; } }
   /* The pod is its own active indicator; the bar would collide with
      the skirt. Opacity rather than display:none so the bar keeps its
      measured position for the slide back out. */
