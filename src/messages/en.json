@@ -2321,6 +2321,8 @@
       "communityBody": "Next: choose your name and avatar.",
       "browse": "Browse matches",
       "loading": "Getting your player ready…",
+      "loadingHint": "Preparing your avatar and your plays.",
+      "loadingSlow": "Taking a little longer than usual. We’re still connecting.",
       "loadError": "Could not load your player. Please try again.",
       "showLogin": "View login",
       "loginPreview": "Login preview",

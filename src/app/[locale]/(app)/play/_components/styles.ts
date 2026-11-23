@@ -1190,10 +1190,8 @@ body:has(.pl-root) .v3-nav-tab { flex:1; min-width:0; padding-left:4px !importan
 @keyframes pl-toast-out{to{opacity:0;transform:translate(-50%,20px)}}
 @media(prefers-reduced-motion:reduce){.pl-quick-confirm{animation:none}.pl-toast-closing{opacity:0}}
 
-/* Collapse branding only; the main navigation remains outside the scroll feed. */
-.pl-brand-header{height:62px;flex:none;transition:height 180ms ease;position:relative;z-index:100}
-.pl-header-compact .pl-brand-header{height:0;overflow:hidden;visibility:hidden}
-.pl-root.pl-header-compact.pl-immersive{--pl-chrome:calc(50px + var(--pl-navh) + env(safe-area-inset-top,0px))}
+/* Branding stays outside the scroll feed; scrolling never changes its height. */
+.pl-brand-header{height:62px;flex:none;position:relative;z-index:100}
 .pl-root .pl-main-tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:99;background:var(--bg-base);flex:none}
 .pl-personal-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 14px;min-height:48px;box-sizing:border-box;flex:none}
 .pl-personal-heading h2{margin:0;font-size:20px;font-weight:900;line-height:1.15;letter-spacing:-.3px;color:var(--text-primary);text-wrap:balance}

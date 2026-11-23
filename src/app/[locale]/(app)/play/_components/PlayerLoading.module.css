@@ -1,0 +1,11 @@
+.screen{max-width:500px;margin:auto;background:var(--bg-base,#191a18);min-height:calc(100dvh - 81px);color:#eee9d9}
+.account{display:flex;align-items:center;gap:10px}.account span{width:52px;height:18px;background:#293122}.account i{width:46px;height:46px;border-radius:50%;background:#293122;border:1px solid #5a6b3c}
+.content{padding:0 18px 24px}.tabs{height:50px;display:flex;gap:22px;align-items:center;justify-content:center;border-bottom:1px solid #ffffff0c}.tabs i{width:25%;height:10px;background:#30352c}
+.card{position:relative;margin:26px 0 18px;padding:28px 20px;background:linear-gradient(145deg,#20301d,#141d17);border:1px solid #698e364d;border-bottom:3px solid #476325;overflow:hidden;text-align:center}
+.portrait{display:grid;place-items:center;width:88px;height:88px;margin:0 auto 20px;border-radius:50%;background:#2b3925;border:1px solid #9acb4f55;color:#526247}.portrait svg{width:70px;height:70px}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:2px;color:#a4df54;margin:0 0 10px}.card h1{font-size:22px;line-height:1.2;font-weight:850;margin:0 auto 12px;max-width:300px}.hint{font-size:13px;line-height:1.5;color:#bdc7b3;min-height:40px;max-width:260px;margin:0 auto 18px}
+.track{height:3px;width:80px;background:#334329;margin:auto;overflow:hidden}.track span{display:block;width:35px;height:100%;background:#7ed321;animation:travel 1.6s ease-in-out infinite alternate}
+.placeholders{display:grid;gap:12px}.placeholders div{height:54px;border:1px solid #ffffff08;background:linear-gradient(100deg,#20271e,#293025,#20271e);background-size:200% 100%;animation:shimmer 2.4s ease-in-out infinite}
+@keyframes travel{to{transform:translateX(45px)}}@keyframes shimmer{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.track span,.placeholders div{animation:none}}
+@media(min-width:1100px){.screen{min-height:0}}@media(max-height:700px){.card{margin-top:16px;padding:20px}.portrait{width:64px;height:64px;margin-bottom:12px}.portrait svg{width:52px;height:52px}.placeholders div{height:36px}}

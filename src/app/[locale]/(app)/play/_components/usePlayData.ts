@@ -67,10 +67,14 @@ export function useApiResource<T>(
     let cancelled = false
 
     let pending = false
-    const controller = new AbortController()
+    let controller: AbortController | null = null
+    let deadline: ReturnType<typeof setTimeout> | null = null
     const refresh = () => {
       if (pending) return
       pending = true
+      controller = new AbortController()
+      // A stalled request must reach the existing retry UI, not spin forever.
+      deadline = setTimeout(() => controller?.abort(), 15_000)
       fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal })
         .then(async (res) => {
           if (!res.ok) throw new Error(`${url} → ${res.status}`)
@@ -83,7 +87,11 @@ export function useApiResource<T>(
         .catch(() => {
           if (cancelled || seq !== requestRef.current) return
           setResult(previous => previous.data && (previous.key === key || retainOnReload && previous.url === url) ? { ...previous, key } : { key, url, data: null, status: 'error' })
-        }).finally(() => { pending = false })
+        }).finally(() => {
+          if (deadline) clearTimeout(deadline)
+          deadline = null
+          pending = false
+        })
     }
     refresh()
     const visibleRefresh = () => { if (!document.hidden) refresh() }
@@ -91,7 +99,8 @@ export function useApiResource<T>(
     if (pollMs) document.addEventListener('visibilitychange', visibleRefresh)
     return () => {
       cancelled = true
-      controller.abort()
+      controller?.abort()
+      if (deadline) clearTimeout(deadline)
       if (timer) clearInterval(timer)
       document.removeEventListener('visibilitychange', visibleRefresh)
     }

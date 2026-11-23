@@ -4,7 +4,11 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
+const localPreview = process.env.NODE_ENV === 'development' && process.env.PADEL_LOCAL_PREVIEW === '1'
+
 const nextConfig: NextConfig = {
+  // Keep review routes warm when switching tabs or pausing to inspect the UI.
+  ...(localPreview ? { onDemandEntries: { maxInactiveAge: 10 * 60_000, pagesBufferLength: 8 } } : {}),
   // Preserve loopback rewrite host; normalization otherwise turns 127.0.0.1
   // into localhost and the guarded dev server proxies the request to itself.
   skipProxyUrlNormalize: process.env.NODE_ENV === 'development',

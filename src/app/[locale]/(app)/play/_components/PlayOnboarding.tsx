@@ -50,7 +50,7 @@ export function useOnboarding(userId:string|undefined) {
  setPreview(previewMode)
  if(previewMode){setProgress({step:'identity',name:'',avatar:'face-06'});setLoading(false);return}
  if(!userId)return
- fetch('/api/play/onboarding',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(p=>{if(active)setProgress(p)}).catch(()=>{if(active)setError(true)}).finally(()=>{if(active)setLoading(false)})
+ fetch('/api/play/onboarding',{cache:'no-store',signal:AbortSignal.timeout(15_000)}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(p=>{if(active)setProgress(p)}).catch(()=>{if(active)setError(true)}).finally(()=>{if(active)setLoading(false)})
  return()=>{active=false}
  },[userId,version])
  async function save(body:object){setError(false);if(preview)return;const r=await fetch('/api/play/onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){setError(true);throw Error('save_failed')}}

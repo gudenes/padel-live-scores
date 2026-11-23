@@ -27,10 +27,15 @@ export function activeLeaderboardWeeks(activityDates: string[], now = new Date()
  const current = monday(now)
  // Reuse one formatter; history can contain many trades on the same day.
  const offsets = new Set<number>()
+ // Madrid's day boundaries and DST changes fall on whole UTC hours. Reuse
+ // their week conversion instead of formatting every individual trade timestamp.
+ const hourOffsets = new Map<number,number>()
  for (const date of new Set(activityDates)) {
   const instant = new Date(date)
   if (!Number.isFinite(instant.getTime())) continue
-  const offset = Math.round((current - monday(instant)) / (7 * DAY))
+  const hour=Math.floor(instant.getTime()/3600000)
+  let offset=hourOffsets.get(hour)
+  if(offset===undefined){offset=Math.round((current-monday(instant))/(7*DAY));hourOffsets.set(hour,offset)}
   if (offset >= 0 && offset <= 520) offsets.add(offset)
  }
  return [...offsets].sort((a,b) => a-b)

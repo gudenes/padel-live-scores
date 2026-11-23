@@ -49,26 +49,23 @@ export async function GET(req: Request) {
 
   const locale = parseLocale(new URL(req.url).searchParams.get('locale'))
 
-  const wallet = await ensureBalance(supabase, userId)
-  if (!wallet) return Response.json({ error: 'no_active_season' }, { status: 503 })
-
-  // RLS is bypassed by the service client, so this `.eq('user_id', …)` is the
-  // ONLY thing separating this caller's positions from everyone else's.
-  const { data: posData, error: posErr } = await supabase
-    .from('market_positions')
-    .select('market_id, user_id, yes_shares, no_shares, cost_basis, realised_pnl')
-    .eq('user_id', userId)
-    .or('yes_shares.gt.0,no_shares.gt.0')
-
-  if (posErr) {
-    console.error('[play/me] positions query failed:', posErr.message)
-    return Response.json({ error: 'query_failed' }, { status: 500 })
-  }
-
-  const [payoutResponse, noticeResponse] = await Promise.all([
+  // Independent account reads run together instead of delaying the wallet
+  // behind several sequential database round trips.
+  const [wallet, positionResponse, payoutResponse, noticeResponse] = await Promise.all([
+    ensureBalance(supabase,userId),
+    supabase.from('market_positions')
+      .select('market_id, user_id, yes_shares, no_shares, cost_basis, realised_pnl')
+      .eq('user_id',userId).or('yes_shares.gt.0,no_shares.gt.0'),
     supabase.from('market_payouts').select('market_id,yes_paid,no_paid,revision').eq('user_id', userId),
     supabase.from('play_result_notices').select('id,market_id,outcome,delta,reason,corrected,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(10),
   ])
+  if(!wallet)return Response.json({error:'no_active_season'},{status:503})
+  const {data:posData,error:posErr}=positionResponse
+  if(posErr){
+    console.error('[play/me] positions query failed:',posErr.message)
+    return Response.json({error:'query_failed'},{status:500})
+  }
+
   // The local UI can run before the migration is applied. Other failures
   // must not present an unpaid or stale balance as a confirmed result.
   for (const response of [payoutResponse, noticeResponse]) {

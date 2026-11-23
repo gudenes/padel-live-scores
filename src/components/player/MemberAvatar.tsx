@@ -11,13 +11,13 @@ import styles from './MemberAvatar.module.css'
 type Appearance=Pick<ShopState,'avatar'|'equipped'>
 const appearances=createAvatarRequestCache<Appearance>()
 function placeholder(size:number,full:boolean){return <span aria-hidden="true" className={`${full?styles.full:styles.portrait} ${styles.loading}`} style={full?undefined:{width:size,height:size}}/>}
-export function MemberAvatar({userId,size=44,full=false,fallback}:{userId:string;size?:number;full?:boolean;fallback:ReactNode}){
+export function MemberAvatar({userId,size=44,full=false,fallback,appearance}:{appearance?:Appearance|null;userId:string;size?:number;full?:boolean;fallback:ReactNode}){
  const {user}=useAuth()
  const neutral=placeholder(size,full)
  if(user?.id===userId)return full?<ShopProfileFigure className={styles.full} fallback={neutral}/>:<ShopProfileAvatar size={size} fallback={neutral}/>
- return <SavedMemberAvatar userId={userId} size={size} full={full} fallback={fallback}/>
+ return <SavedMemberAvatar initialAppearance={appearance} userId={userId} size={size} full={full} fallback={fallback}/>
 }
-function SavedMemberAvatar({userId,size,full,fallback}:{userId:string;size:number;full:boolean;fallback:ReactNode}){
+function SavedMemberAvatar({userId,size,full,fallback,initialAppearance}:{initialAppearance?:Appearance|null;userId:string;size:number;full:boolean;fallback:ReactNode}){
  const {user}=useAuth()
  const key=`${user?.id}:${userId}`
  const [unavailable,setUnavailable]=useState<string|null>(null)
@@ -25,6 +25,7 @@ function SavedMemberAvatar({userId,size,full,fallback}:{userId:string;size:numbe
  useEffect(()=>{
   if(!user?.id)return
   let active=true
+  if(initialAppearance)appearances.prime(key,initialAppearance)
   let retry:ReturnType<typeof setTimeout>|undefined
   let retried=false
   const refresh=(force=false)=>{void appearances.read(key,async()=>{
@@ -38,8 +39,8 @@ function SavedMemberAvatar({userId,size,full,fallback}:{userId:string;size:numbe
   const focus=()=>refresh(),changed=()=>refresh(true)
   refresh();window.addEventListener('focus',focus);window.addEventListener('pn:wardrobe-updated',changed)
   return()=>{active=false;clearTimeout(retry);window.removeEventListener('focus',focus);window.removeEventListener('pn:wardrobe-updated',changed)}
- },[user?.id,userId,key])
- const data=value?.key===key?value.appearance:appearances.peek(key)
+ },[user?.id,userId,key,initialAppearance])
+ const data=value?.key===key?value.appearance:initialAppearance??appearances.peek(key)
  if(!data)return unavailable===key?<>{fallback}</>:placeholder(size,full)
  const state:ShopState={...data,balance:0,owned:[]}
  return <span className={full?styles.full:styles.portrait} style={full?undefined:{width:size,height:size}}>
