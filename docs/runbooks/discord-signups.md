@@ -2,7 +2,12 @@
 
 The existing database trigger on `public.users` calls `/api/webhooks/new-signup`.
 That handler sends the existing Telegram alert and an optional Discord message.
-Discord receives signup method and total user count, with no name or email.
+Discord receives name, email, signup method, and total user count. Keep the
+destination channel restricted to the team members who should see signup details.
+Missing names show "Not provided"; missing emails or unconfirmed signup methods
+show "Not available". A missing accounts row is not assumed to mean email login.
+Authenticated diagnostic requests should set `test: true` in the webhook payload;
+both Discord and Telegram then show a clear test heading.
 
 ## Enable
 
