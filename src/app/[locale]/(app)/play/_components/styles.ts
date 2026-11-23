@@ -917,6 +917,10 @@ export const PLAY_STYLES = `
  .pl-mcard .pl-hero { height:116px; }
 }
 
+/* Tournament posters need their own frame: never clip a taller image inside
+   the compact player hero. Full artwork stays visible at every screen size. */
+.pl-mcard .pl-hero.pl-hero-tournament { height:clamp(160px,24dvh,200px); }
+
 /* House press controls: face moves down into its coloured skirt. */
 .pl-pair-choices .pl-choice-press { padding:0; min-height:58px; height:58px; display:block; clip-path:none; color:#0a0a0a; }
 .pl-choice-press .pn-press-face { flex-direction:column; gap:2px; color:#0a0a0a; }

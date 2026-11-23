@@ -1,4 +1,4 @@
-.joystick{position:relative;display:block;width:88px;height:88px;pointer-events:none;filter:drop-shadow(0 2px 1px #0006)}
+.joystick{position:relative;display:block;width:70.4px;height:70.4px;pointer-events:none;filter:drop-shadow(0 2px 1px #0006)}
 .layer{position:absolute;inset:0;display:block;background-image:url('/play/navigation/joystick-layers-v2.png');background-size:300% 100%;background-repeat:no-repeat}
 .base{background-position:0 0}
 .shaft{background-position:50% 0;left:3%;right:-3%;top:-2%;bottom:2%;transform-origin:49.2% 68.4%;transition:transform 420ms cubic-bezier(.22,1.65,.42,1)}

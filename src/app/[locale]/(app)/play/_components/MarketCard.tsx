@@ -14,6 +14,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { VersusIdentity } from './PlayerIdentity'
 import { previewBuy } from './market-preview'
+import TournamentMarketArtwork from './TournamentMarketArtwork'
 import EditorialMarketHero from './EditorialMarketHero'
 import PositionNudge from './PositionNudge'
 import { Press } from './shared'
@@ -72,7 +73,7 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
       <h2 className="pl-q pl-card-title">{title}</h2>
       {onViewPositions && <PositionNudge positions={positions} onOpen={collapsed ? undefined : onViewPositions} />}
       {!collapsed && <>
-      {market.editorial ? <EditorialMarketHero data={market.editorial} compact={market.horizon === 'tourn'} /> : <div className="pl-hero">
+      {market.editorial ? <EditorialMarketHero data={market.editorial} compact={market.horizon === 'tourn'} /> : <div className={`pl-hero${!players && market.tournamentImage ? ' pl-hero-tournament' : ''}`}>
         {players ? (
           // Real player portraits sit over the shared arena backdrop.
           <VersusIdentity
@@ -82,7 +83,7 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
             subjectPair={market.subjectPair}
           />
         ) : market.tournamentImage ? (
-          <Image src={market.tournamentImage} alt={market.competition || market.context} width={640} height={320} unoptimized style={{width:'100%',height:180,objectFit:'cover',position:'relative'}}/>
+          <TournamentMarketArtwork src={market.tournamentImage} alt={market.competition || market.context} />
         ) : (
           // Tournament- and season-horizon markets have no match and therefore
           // no four players; they keep the ghosted monogram.
