@@ -18,6 +18,8 @@ type Record = {
 }
 
 type Payload = {
+  // Only authenticated diagnostic requests set this; database events omit it.
+  test?: boolean
   type?: string
   table?: string
   schema?: string
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
     const time = new Date().toLocaleString('en-GB', { timeZone: 'UTC' })
 
     const message = [
+      ...(payload.test === true ? ['🧪 TEST — no account was created', ''] : []),
       `🎾 New signup on PadelNachos!`,
       ``,
       `👤 Name: ${name}`,
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
     // Attempt both destinations even if one fails.
     const results = await Promise.allSettled([
       Promise.resolve().then(() => sendMessage(getDefaultChatId(), message, 'HTML')),
-      sendDiscordSignup(provider, count),
+      sendDiscordSignup({ provider, total: count, name: record.name, email: record.email, test: payload.test === true }),
     ])
     const failures = results.filter((result) => result.status === 'rejected')
     if (failures.length) {
