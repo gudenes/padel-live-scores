@@ -2111,6 +2111,10 @@
       "noFollowing": "Sigue a un jugador desde su perfil para verlo aquí.",
       "noFollowedResults": "Los jugadores que sigues no tienen jugadas resueltas en este período.",
       "showFollowing": "Ver jugadores seguidos",
+      "global": "Global",
+      "friends": "Amigos",
+      "findPlayers": "Buscar jugadores",
+      "audience": "Ámbito de la clasificación",
       "showEveryone": "Ver todos los jugadores"
     },
     "time": {

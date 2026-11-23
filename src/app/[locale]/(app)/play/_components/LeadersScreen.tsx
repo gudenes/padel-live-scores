@@ -1,5 +1,6 @@
 'use client'
 
+import InviteDrawer from '@/components/play-invite/InviteDrawer'
 import RankingInfo from './RankingInfo'
 import {SearchIcon} from '@/components/icons'
 import PredictionRate from '@/components/player/PredictionRate'
@@ -72,6 +73,7 @@ export default function LeadersScreen({
   const locale = useLocale()
   const follows=useMemberFollows(active)
   const [followingOnly,setFollowingOnly]=useState(false)
+  const [inviteOpen,setInviteOpen]=useState(false)
   const [history,setHistory]=useState(false)
   const [searchOpen,setSearchOpen]=useState(false)
   const [query,setQuery]=useState('')
@@ -110,7 +112,7 @@ export default function LeadersScreen({
     <>
       <div className={`pl-lb-head ${styles.toolbar}`} data-search-open={searchOpen}>
 
-        <div className="pl-per" hidden={searchOpen}>
+        <div className="pl-per">
           {PERIODS.map((p) => (
             <button
               key={p}
@@ -122,15 +124,11 @@ export default function LeadersScreen({
               {t(`leaders.${p}`)}
             </button>
           ))}
-          <button hidden={searchOpen} type="button" aria-label={t('leaders.history')} title={t('leaders.history')} aria-expanded={history} onClick={()=>{setHistory(!history);onPeriod('week')}}>
+          <button type="button" aria-label={t('leaders.history')} title={t('leaders.history')} aria-expanded={history} onClick={()=>{setHistory(!history);onPeriod('week')}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 11a9 9 0 1 1 3 8M3 4v7h7M12 7v5l3 2"/></svg>
           </button>
         </div>
-        {searchOpen && <div className={styles.searchBox}>
-          <SearchIcon size={18}/>
-          <input ref={searchInput} type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('leaders.searchPlaceholder')} aria-label={t('leaders.searchPlaceholder')} onKeyDown={e=>{if(e.key==='Escape'){setQuery('');setSearchOpen(false)}}}/>
-        </div>}
-        <div className={styles.tools}><Press ariaPressed={followingOnly} className={styles.followFilter} ariaLabel={t( followingOnly ? 'leaders.showEveryone' : 'leaders.showFollowing')} size="size-sm" intent={followingOnly?'intent-primary':'intent-ghost'} disabled={!follows.ready} onClick={()=>setFollowingOnly(!followingOnly)}><span className={styles.followFilterContent}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M17 15a4 4 0 0 1 4 4v2"/></svg>{follows.ready?follows.ids.length:'—'}</span></Press><Press size="size-sm" intent={searchOpen?'intent-primary':'intent-ghost'} ariaLabel={t(searchOpen?'detail.close':'leaders.searchToggle')} ariaPressed={searchOpen} onClick={()=>{setSearchOpen(!searchOpen);setQuery('')}}>{searchOpen ? <span aria-hidden="true">×</span> : <SearchIcon size={18}/>}</Press></div>
+
       </div>
       {period==='week'&&<div className={styles.weekHistory}>
         <span>{dateLabel(week.labelStart)} – {dateLabel(week.labelEnd)}</span>
@@ -184,13 +182,29 @@ export default function LeadersScreen({
         </div>
         {board.me.move != null && <Move move={board.me.move}/>}
       </section>}
+      <div className={styles.scope}>
+        <div className={`pl-per ${styles.audienceSelector}`} role="group" aria-label={t('leaders.audience')}>
+          <button type="button" className={!followingOnly?'pl-on':undefined} aria-pressed={!followingOnly} onClick={()=>setFollowingOnly(false)}>{t('leaders.global')}</button>
+          <button type="button" className={followingOnly?'pl-on':undefined} aria-pressed={followingOnly} disabled={!follows.ready} onClick={()=>setFollowingOnly(true)}>{t('leaders.friends')}</button>
+        </div>
+        <div className={styles.audienceTools}><Press size="size-sm" intent={searchOpen?'intent-primary':'intent-ghost'} ariaLabel={t(searchOpen?'detail.close':'leaders.searchToggle')} ariaPressed={searchOpen} onClick={()=>{setSearchOpen(!searchOpen);setQuery('')}}>{searchOpen ? <span aria-hidden="true">×</span> : <SearchIcon size={18}/>}</Press><RankingInfo weekly={period==='week'}/></div>
+      </div>
+      <div className={styles.audienceSearch}>
+        {searchOpen && <div className={styles.searchBox}>
+          <SearchIcon size={18}/>
+          <input ref={searchInput} type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('leaders.searchPlaceholder')} aria-label={t('leaders.searchPlaceholder')} onKeyDown={e=>{if(e.key==='Escape'){setQuery('');setSearchOpen(false)}}}/>
+        </div>}
+      </div>
       {!searchOpen && status === 'ready' && rows.length > 0 && <>
-        <div className={styles.scope}><strong>{t('leaders.title')} · {t(`leaders.${period}`)}</strong><RankingInfo weekly={period==='week'}/></div>
         <div className={styles.columns}><span>#</span><span>{t('leaders.player')}</span><span>{t('leaders.netWinnings')}</span></div>
       </>}
 
       {follows.error&&<p role="alert" className={styles.followError}>{t('leaders.followError')}</p>}
-      {!searchOpen&&followingOnly&&status==='ready'&&visibleRows.length===0&&<p className={styles.followEmpty}>{t(follows.ids.length?'leaders.noFollowedResults':'leaders.noFollowing')}</p>}
+      {!searchOpen&&followingOnly&&follows.ready&&status==='ready'&&!visibleRows.some(row=>!row.isMe)&&<section className={styles.friendEmpty}>
+        <p>{t(follows.ids.length?'leaders.noFollowedResults':'leaders.noFollowing')}</p>
+        <div><Press size="size-sm" onClick={()=>setInviteOpen(true)}>{t('invite.inviteFriends')}</Press>
+          <Press size="size-sm" intent="intent-ghost" onClick={()=>{setFollowingOnly(false);setQuery('');setSearchOpen(true)}}>{t('leaders.findPlayers')}</Press></div>
+      </section>}
       {!searchOpen && status === 'ready' && (rows.length > 0 || board?.me) && (
         <div ref={list} className={`pl-lb-list ${styles.list}`} tabIndex={0} role="region" aria-label={t('leaders.standings')}>
           {visibleRows.map((l, k) => (
@@ -214,7 +228,7 @@ export default function LeadersScreen({
         </div>
       )}
 
-      {searchOpen&&status==='ready'&&rows.length>0&&<section className={styles.searchResults} aria-label={t('leaders.searchPlayers')}>
+      {searchOpen&&status==='ready'&&<section className={styles.searchResults} aria-label={t('leaders.searchPlayers')}>
        <h2>{t('leaders.searchPlayers')}</h2>
        <p role="status">{query.trim().length<2?t('leaders.searchHint'):t('leaders.searchCount',{count:searchRows.length})}</p>
        {query.trim().length>=2&&searchRows.map(l=><div key={l.userId??l.displayName} className={styles.searchRow}>
@@ -224,6 +238,7 @@ export default function LeadersScreen({
         {!l.isMe&&!l.isSimulation&&l.userId&&<Press size="size-sm" intent={follows.ids.includes(l.userId)?'intent-ghost':'intent-primary'} disabled={follows.busy||!follows.ready} onClick={()=>void follows.toggle(l.userId!)}>{t(follows.ids.includes(l.userId)?'leaders.followed':'leaders.follow')}</Press>}
        </div>)}
       </section>}
+      {inviteOpen && <InviteDrawer onClose={()=>setInviteOpen(false)}/>}
       {selected && <PlayerPreview follows={follows} leader={selected} name={nameOf(selected)} period={period} onClose={() => setSelected(null)} onProfile={() => router.push('/profile')} />}
 
     </>

@@ -2111,6 +2111,10 @@
       "noFollowing": "Suis un joueur depuis son profil pour le retrouver ici.",
       "noFollowedResults": "Aucun résultat réglé pour les joueurs suivis sur cette période.",
       "showFollowing": "Voir les joueurs suivis",
+      "global": "Global",
+      "friends": "Amis",
+      "findPlayers": "Trouver des joueurs",
+      "audience": "Portée du classement",
       "showEveryone": "Voir tous les joueurs"
     },
     "time": {

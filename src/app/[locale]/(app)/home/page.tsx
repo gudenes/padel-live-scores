@@ -12,7 +12,6 @@ import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import SocialLinks from '@/app/components/SocialLinks'
 import { withTimeout } from '@/lib/with-timeout'
-import PredictLaunchBanner from '@/components/home/PredictLaunchBanner'
 import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
@@ -583,7 +582,7 @@ function V3HomePageInner() {
   if (loading) {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        {PREDICT_LAUNCH_ENABLED && <><GlobalHeader /><PredictLaunchBanner /></>}
+        {PREDICT_LAUNCH_ENABLED && <GlobalHeader />}
         <BrandedLoader hints={[...LOADER_HINTS.home]} />
       </div>
     )
@@ -619,7 +618,6 @@ function V3HomePageInner() {
       {/* ── Header — extracted to GlobalHeader so Tournaments and
               Rankings can share the same chrome. */}
       <GlobalHeader />
-      <PredictLaunchBanner />
 
       <InviteWelcomeBanner />
       <ReferralToast />

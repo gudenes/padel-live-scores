@@ -2143,6 +2143,10 @@
       "noFollowing": "Follow a player from their profile to see them here.",
       "noFollowedResults": "No settled plays from the players you follow in this period.",
       "showFollowing": "Show followed players",
+      "global": "Global",
+      "friends": "Friends",
+      "findPlayers": "Find players",
+      "audience": "Leaderboard audience",
       "showEveryone": "Show all players"
     },
     "time": {

@@ -5,6 +5,7 @@
 import { useSearchParams } from 'next/navigation'
 import { usePathname } from '@/i18n/navigation'
 import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
+import PredictLaunchBanner from '@/components/home/PredictLaunchBanner'
 import ProductRelease from '@/components/releases/ProductRelease'
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
@@ -49,6 +50,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           outside this (app) group but still need the nudge context). */}
       <div data-app-route-shell data-avatar-shop-shell={(pathname === '/avatar-shop' || pathname === '/avatar-preview') ? '' : undefined} style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
+      {!hideNav && PREDICT_LAUNCH_ENABLED && <PredictLaunchBanner />}
       {!hideNav && !PREDICT_LAUNCH_ENABLED && <ProductRelease key={pathname} />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
           shells. Self-gated for mobile/tablet via CSS media query. Skipped
