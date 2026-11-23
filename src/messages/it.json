@@ -2289,6 +2289,8 @@
       "communityBody": "Poi scegli il tuo nome e il tuo avatar.",
       "browse": "Vedi le partite",
       "loading": "Prepariamo il tuo giocatore…",
+      "loadingHint": "Prepariamo il tuo avatar e i tuoi pronostici.",
+      "loadingSlow": "Ci vuole un po’ più del solito. La connessione è ancora in corso.",
       "loadError": "Impossibile caricare il tuo giocatore. Riprova.",
       "showLogin": "Vedi accesso",
       "loginPreview": "Anteprima accesso",

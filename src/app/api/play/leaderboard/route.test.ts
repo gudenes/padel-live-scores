@@ -51,3 +51,28 @@ it('returns bounded empty history when nobody has played',async()=>{
  const data=await(await GET(new Request('https://test/api/play/leaderboard?period=week'))).json()
  expect(data).toMatchObject({weekOffset:0,previousWeek:null,nextWeek:null,rows:[]})
 })
+
+it('includes inactive friends at zero without changing global ranks or caller rank',async()=>{
+ m.rows.play_member_follows=[{following_id:'inactive'},{following_id:'pending'}]
+ m.rows.profiles=[{id:'inactive',display_name:'Inactive friend'},{id:'pending',display_name:'Me'}]
+ const data=await(await GET(new Request('https://test/api/play/leaderboard?period=week'))).json()
+ expect(data.rows.map((r:{userId:string})=>r.userId)).toEqual(['pending'])
+ expect(data.me).toMatchObject({userId:'pending',rank:1})
+ expect(data.friendRows).toHaveLength(2)
+ expect(data.friendRows.find((r:{userId:string})=>r.userId==='inactive')).toMatchObject({netWinnings:0,displayName:'Inactive friend',humanRank:null,prizeEligible:false})
+ expect(m.calls).toContainEqual(['play_member_follows','eq',['follower_id','pending']])
+})
+it('returns friends when the global ladder is empty and batches their saved appearances',async()=>{
+ m.rows.market_trades=[]
+ m.rows.play_member_follows=[{following_id:'inactive'}]
+ m.rows.profiles=[{id:'inactive',display_name:'Friend'}]
+ m.rows.play_access=[{user_id:'inactive'}]
+ m.rows.play_wardrobes=[{user_id:'inactive',avatar:'face-06',equipped:{shirt:'invalid-item'}}]
+ const response=await GET(new Request('https://test/api/play/leaderboard?period=week'))
+ const data=await response.json()
+ expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+ expect(data.rows).toEqual([])
+ expect(data.me).toBeNull()
+ expect(data.friendRows.find((r:{userId:string})=>r.userId==='inactive')).toMatchObject({netWinnings:0,appearance:{avatar:'face-06',equipped:{}}})
+ expect(m.calls).toContainEqual(['play_wardrobes','in',['user_id',['inactive']]])
+})

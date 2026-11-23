@@ -1,3 +1,4 @@
+import {parseMemberAppearance,type MemberAppearance} from '@/lib/member-appearance'
 import { parseEditorialView, type EditorialView } from '../../../../../../shared/play-editorial-view'
 // src/app/[locale]/(app)/play/_components/types.ts
 //
@@ -207,6 +208,7 @@ export interface PlayTrade {
 
 /** One row of `GET /api/play/leaderboard` → `rows` / `me`. */
 export interface PlayLeader {
+  appearance?: MemberAppearance | null
   isSimulation?: boolean
   avatarSeed?: string
   humanRank?: number | null
@@ -224,6 +226,7 @@ export interface PlayLeader {
 }
 
 export interface PlayLeaderboard {
+  friendRows?: PlayLeader[]
   weekOffset?: number
   previousWeek?: number | null
   nextWeek?: number | null
@@ -539,6 +542,7 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
     if (!item || typeof item !== 'object') return null
     const l = item as Record<string, unknown>
     return {
+      appearance: parseMemberAppearance(l.appearance),
       isSimulation: l.isSimulation === true,
       avatarSeed: asString(l.avatarSeed),
       humanRank: asNumber(l.humanRank),
@@ -562,5 +566,6 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
       if (parsed) rows.push(parsed)
     })
   }
-  return { weekOffset: asNumber(r.weekOffset) ?? undefined, previousWeek: asNumber(r.previousWeek), nextWeek: asNumber(r.nextWeek), hasSimulation: r.hasSimulation === true, rows, me: one(pick(r, 'me'), rows.length + 1, true) }
+  const friendRows=Array.isArray(r.friendRows)?r.friendRows.map((item,i)=>one(item,i+1,false)).filter((row):row is PlayLeader=>row!==null):undefined
+  return { friendRows, weekOffset: asNumber(r.weekOffset) ?? undefined, previousWeek: asNumber(r.previousWeek), nextWeek: asNumber(r.nextWeek), hasSimulation: r.hasSimulation === true, rows, me: one(pick(r, 'me'), rows.length + 1, true) }
 }

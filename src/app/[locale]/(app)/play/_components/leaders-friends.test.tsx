@@ -7,12 +7,13 @@ import messages from '@/messages/en.json'
 import type {PlayLeaderboard} from './types'
 vi.stubGlobal('React',React)
 vi.mock('@/i18n/navigation',()=>({useRouter:()=>({push:vi.fn()})}))
-vi.mock('./useMemberFollows',()=>({useMemberFollows:()=>({ids:[],ready:true,error:false,busy:false,toggle:vi.fn()})}))
+const social=vi.hoisted(()=>({ids:[] as string[]}))
+vi.mock('./useMemberFollows',()=>({useMemberFollows:()=>({ids:social.ids,ready:true,error:false,busy:false,toggle:vi.fn()})}))
 vi.mock('@/components/player/MemberAvatar',()=>({MemberAvatar:()=>null}))
 vi.mock('@/components/PlayerAvatar',()=>({PlayerAvatar:()=>null,PlayerFigure:()=>null}))
 vi.mock('@/components/play-invite/InviteDrawer',()=>({default:()=> <div role="dialog">Invite friends</div>}))
 import LeadersScreen from './LeadersScreen'
-afterEach(cleanup)
+afterEach(()=>{cleanup();social.ids=[]})
 it('offers invites with only the own row, and Find players opens Global search',()=>{
  const row={userId:'me',displayName:'Myself',isMe:true,rank:1,netWinnings:0,move:null,accuracy:null,streak:null,isSimulation:false,avatarUrl:null}
  const board={rows:[row,{...row,userId:'other',displayName:'Other player',isMe:false,rank:2}],me:row,weekOffset:0} as unknown as PlayLeaderboard
@@ -27,4 +28,16 @@ it('offers invites with only the own row, and Find players opens Global search',
  expect(document.activeElement).toBe(input)
  fireEvent.change(input,{target:{value:'Other'}})
  expect(screen.getByText('Other player')).toBeTruthy()
+})
+
+it('shows inactive friends even when the global leaderboard is empty',()=>{
+ social.ids=['friend']
+ const row={userId:'friend',displayName:'Resting friend',isMe:false,rank:1,netWinnings:0,move:null,accuracy:null,streak:null}
+ const board:PlayLeaderboard={rows:[],friendRows:[row],me:null,weekOffset:0}
+ render(<NextIntlClientProvider locale="en" messages={messages}><LeadersScreen active board={board} status="ready" period="week" onPeriod={()=>{}} onRetry={()=>{}}/></NextIntlClientProvider>)
+ fireEvent.click(screen.getByRole('button',{name:'Friends'}))
+ expect(screen.getByText('Resting friend')).toBeTruthy()
+ expect(screen.queryByText(messages.play.leaders.noFollowing)).toBeNull()
+ fireEvent.click(screen.getByRole('button',{name:'Global'}))
+ expect(screen.queryByText('Resting friend')).toBeNull()
 })

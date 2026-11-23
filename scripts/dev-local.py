@@ -6,6 +6,9 @@ import signal
 import subprocess
 import sys
 import time
+import threading
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +24,7 @@ try:
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
     raise SystemExit('A guarded preview is already running. Stop it before starting another.')
-env = dict(os.environ, NODE_OPTIONS='--max-old-space-size=2304', RAYON_NUM_THREADS='2', UV_THREADPOOL_SIZE='2')
+env = dict(os.environ, PADEL_LOCAL_PREVIEW='1', NODE_OPTIONS='--max-old-space-size=2304', RAYON_NUM_THREADS='2', UV_THREADPOOL_SIZE='2')
 child = subprocess.Popen(['node', str(workdir / 'node_modules/next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', port], cwd=workdir, env=env, start_new_session=True)
 
 def stop(*_):
@@ -35,6 +38,43 @@ def stop(*_):
 
 signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGINT, stop)
+def warm_play():
+    """Compile read-only entry routes before review; never impersonate a user."""
+    base = f'http://127.0.0.1:{port}'
+    routes = ['/api/auth/session', '/es/play', '/api/play/onboarding',
+              '/api/play/markets', '/api/play/me', '/api/play/leaderboard?period=week&week=0']
+    for route in routes:
+        timeouts = 0
+        for attempt in range(60):
+            if child.poll() is not None:
+                return
+            try:
+                with urllib.request.urlopen(base + route, timeout=120) as response:
+                    response.read()
+                break
+            except urllib.error.HTTPError as error:
+                # Protected endpoints intentionally reject this anonymous warmup.
+                if error.code in (401, 403, 404):
+                    break
+                print(f'Warmup failed for {route}: HTTP {error.code}', flush=True)
+                return
+            except urllib.error.URLError:
+                if attempt == 59:
+                    print('Preview warmup could not connect.', flush=True)
+                    return
+                time.sleep(1)
+            except TimeoutError:
+                timeouts += 1
+                if timeouts >= 3:
+                    print(f'Preview warmup timed out: {route}', flush=True)
+                    return
+                print(f'Still compiling {route}; retrying warmup.', flush=True)
+        print(f'Warmed {route}', flush=True)
+    print(f'Play preview ready for review: {base}/es/play', flush=True)
+
+if target == 'app':
+    threading.Thread(target=warm_play, daemon=True).start()
+
 peak_count = peak_kb = 0
 monitor_failures = 0
 print(f'{target}: Webpack preview, 12-process / 3 GiB resident-memory guard.', flush=True)

@@ -6,14 +6,16 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {previewBuy} from './_components/market-preview'
+import onboardingStyles from './_components/PlayOnboarding.module.css'
+import PlayerLoading from './_components/PlayerLoading'
 import PlayWelcome from './_components/PlayWelcome'
 import FloatingInvite from './_components/FloatingInvite'
 import InviteDrawer from '@/components/play-invite/InviteDrawer'
 import {useInvitePrompt} from '@/components/play-invite/useInvitePrompt'
 import SettlementResults from '@/components/play-results/SettlementResults'
+import {useShopWardrobe} from '@/hooks/useShopWardrobe'
 import {useAuth} from '@/components/AuthProvider'
 import {IdentitySetup,OnboardingGuide,useOnboarding} from './_components/PlayOnboarding'
-import onboardingStyles from './_components/PlayOnboarding.module.css'
 import { useLocale, useTranslations } from 'next-intl'
 import MarketToolbar from './_components/MarketToolbar'
 import { unplayedFirst, filterMarkets, type MarketFilter } from './_components/market-filters'
@@ -63,12 +65,14 @@ const SUBNAV_FOR: Partial<Record<Screen, SubNavKey>> = {
 export default function PlayPage() {
   const t = useTranslations('play')
   const locale = useLocale()
+  const onboardT=useTranslations('play.onboarding')
   const {user}=useAuth()
+  // Warm the shared wardrobe while onboarding and market requests run.
+  useShopWardrobe(process.env.NODE_ENV==='production')
   const onboarding=useOnboarding(user?.id)
   const [loginPreview,setLoginPreview]=useState(false)
   useEffect(()=>{setLoginPreview(process.env.NODE_ENV!=='production'&&new URLSearchParams(window.location.search).get('onboarding')==='login')},[])
   const [firstSuccess,setFirstSuccess]=useState(false)
-  const onboardT=useTranslations('play.onboarding')
 
   const [resultMarket,setResultMarket]=useState<string|null>(null)
   const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
@@ -108,12 +112,18 @@ export default function PlayPage() {
   const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarketOverview, true, 30_000, true)
   const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe, true, 30_000, true)
   const activity = useApiResource(`/api/play/activity?locale=${locale}`, parseActivity, screen === 'activity')
-  // The leaderboard is the one screen most users never open; don't spend a
-  // request on it until they do.
+  // Warm standings after the primary screen is ready, before the first tab tap.
+  useEffect(()=>{
+    if(markets.status!=='ready'||onboarding.loading||onboarding.progress?.step!=='done')return
+    const timer=window.setTimeout(()=>setLeadersOpened(true),1200)
+    return()=>window.clearTimeout(timer)
+  },[markets.status,onboarding.loading,onboarding.progress?.step])
   const leaders = useApiResource(
     `/api/play/leaderboard?period=${leaderPeriod}&week=${leaderWeek}`,
     parseLeaderboard,
     leadersOpened,
+    30_000,
+    true,
   )
 
   // Resolve the default once. Direct links and manual navigation win.
@@ -254,23 +264,20 @@ export default function PlayPage() {
 
 
 
-  const [compactHeader,setCompactHeader]=useState(false)
-  const lastScroll=useRef(0)
-  useEffect(()=>{setCompactHeader(false);lastScroll.current=0},[screen])
   const subnavKey = SUBNAV_FOR[screen]
 
   if(loginPreview)return <PlayWelcome/>
-  if(onboarding.loading)return <div className={onboardingStyles.loading} role="status">{onboardT('loading')}</div>
-  if(!onboarding.progress&&onboarding.error)return <div className={onboardingStyles.loading}><p role="alert">{onboardT('loadError')}</p><Press onClick={onboarding.retry}>{t('error.retry')}</Press></div>
+  if(onboarding.loading)return <PlayerLoading/>
+  if(!onboarding.progress&&onboarding.error)return <PlayerLoading error onRetry={onboarding.retry}/>
   if(onboarding.progress?.step==='identity')return <IdentitySetup initial={onboarding.progress} onSave={onboarding.identity} preview={onboarding.preview}/>
   const guideStep=firstSuccess?'success':onboarding.progress?.step
   const showGuide=guideStep&&guideStep!=='done'
   const finishGuide=()=>{void onboarding.advance('done').then(()=>setFirstSuccess(false)).catch(()=>{})}
 
   return (
-    <div data-onboarding={showGuide?guideStep:undefined} onScrollCapture={event=>{if(screen!=='deck')return;const target=event.target as HTMLElement;if(!target.matches('.pl-natural-feed,.pl-reel-feed,.pl-market-scroll'))return;const top=Math.max(0,target.scrollTop);const delta=top-lastScroll.current;if(top<12||delta < -8)setCompactHeader(false);else if(top>64&&delta>8)setCompactHeader(true);if(Math.abs(delta)>8||top<12)lastScroll.current=top}} className={`pl-root${compactHeader&&!showGuide&&screen==='deck'?' pl-header-compact':''}${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
+    <div data-onboarding={showGuide?guideStep:undefined} className={`pl-root${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      <div className="pl-brand-header" inert={compactHeader&&!showGuide&&screen==='deck'}><GlobalHeader playerWallet={<PlayerWallet walletKey={onboarding.preview?undefined:me.data?.walletKey} previewAvatar={onboarding.preview?onboarding.progress?.avatar:undefined} welcome={guideStep==='wallet'} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
+      <div className="pl-brand-header"><GlobalHeader playerWallet={<PlayerWallet walletKey={onboarding.preview?undefined:me.data?.walletKey} previewAvatar={onboarding.preview?onboarding.progress?.avatar:undefined} welcome={guideStep==='wallet'} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
 
       {subnavKey && (
         <SubNav availableCount={markets.data?.totalAvailable} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />

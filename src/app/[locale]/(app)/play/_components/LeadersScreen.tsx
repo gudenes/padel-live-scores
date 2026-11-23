@@ -10,7 +10,7 @@ import PredictionRate from '@/components/player/PredictionRate'
 
 import {useMemberFollows} from './useMemberFollows'
 import {leaderboardWeek} from '@/lib/leaderboard-week'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {MemberAvatar} from '@/components/player/MemberAvatar'
 import GuacaCoin from '@/components/GuacaCoin'
 import { useLocale, useTranslations } from 'next-intl'
@@ -41,7 +41,7 @@ function Move({ move }: { move: number | null }) {
 function LeaderAvatar({ leader, size = 44 }: { leader: PlayLeader; size?: number }) {
   const fallback = leader.avatarUrl ? <Avatar src={leader.avatarUrl} alt="" size={size} unoptimized /> : <PlayerAvatar outfit="starter" size={size} />
   if (leader.isSimulation) return <PlayerAvatar outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} wardrobe={simulationPlayerWardrobe(leader.avatarSeed || leader.displayName)} approvedArtwork size={size} />
-  return leader.userId ? <MemberAvatar userId={leader.userId} size={size} fallback={fallback}/> : fallback
+  return leader.userId ? <MemberAvatar userId={leader.userId} appearance={leader.appearance} size={size} fallback={fallback}/> : fallback
 }
 
 export interface LeadersScreenProps {
@@ -92,9 +92,18 @@ export default function LeadersScreen({
   const [selected, setSelected] = useState<PlayLeader | null>(null)
   const [expanded, setExpanded] = useState(false)
   const rows = board?.rows ?? []
-  const searchRows=rows.filter(row=>(!followingOnly||row.isMe||!!row.userId&&follows.ids.includes(row.userId))&&row.displayName.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale))).slice(0,20)
+  const friendRows=useMemo(()=>{
+    const ids=new Set(follows.ids)
+    // Merge current global entries so a newly followed player appears immediately.
+    const candidates=new Map((board?.rows??[]).map(row=>[row.userId,row]))
+    for(const row of board?.friendRows??[])candidates.set(row.userId,row)
+    return [...candidates.values()].filter(row=>row.isMe||!!row.userId&&ids.has(row.userId))
+      .sort((a,b)=>b.netWinnings-a.netWinnings||(a.userId??'').localeCompare(b.userId??''))
+      .map((row,index)=>({...row,rank:index+1}))
+  },[board,follows.ids])
+  const searchRows=(followingOnly?friendRows:rows).filter(row=>row.displayName.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale))).slice(0,20)
   const myIndex = rows.findIndex(row => row.isMe)
-  const visibleRows = followingOnly ? rows.filter(row=>row.isMe || (!!row.userId&&follows.ids.includes(row.userId))) : expanded || myIndex < 0 ? rows : rows.filter((_, index) => index < 3 || Math.abs(index - myIndex) <= 2)
+  const visibleRows = followingOnly ? friendRows : expanded || myIndex < 0 ? rows : rows.filter((_, index) => index < 3 || Math.abs(index - myIndex) <= 2)
   // Accuracy and streak are not in the leaderboard payload today. Returning
   // an empty string keeps the sub-line out of the DOM rather than rendering
   // "0% accurate" for everybody.
@@ -157,7 +166,7 @@ export default function LeadersScreen({
         />
       )}
 
-      {status === 'ready' && rows.length === 0 && !board?.me && (
+      {status === 'ready' && !followingOnly && rows.length === 0 && !board?.me && (
         <section className={styles.emptyWeek}>
           <strong>{t(period === 'week' ? 'leaders.quietWeekTitle' : 'leaders.empty.title')}</strong>
           <p>{t(period === 'week' ? 'leaders.quietWeekBody' : 'leaders.empty.body')}</p>
@@ -195,7 +204,7 @@ export default function LeadersScreen({
           <input ref={searchInput} type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('leaders.searchPlaceholder')} aria-label={t('leaders.searchPlaceholder')} onKeyDown={e=>{if(e.key==='Escape'){setQuery('');setSearchOpen(false)}}}/>
         </div>}
       </div>
-      {!searchOpen && status === 'ready' && rows.length > 0 && <>
+      {!searchOpen && status === 'ready' && visibleRows.length > 0 && <>
         <div className={styles.columns}><span>#</span><span>{t('leaders.player')}</span><span>{t('leaders.netWinnings')}</span></div>
       </>}
 
@@ -205,7 +214,7 @@ export default function LeadersScreen({
         <div><Press size="size-sm" onClick={()=>setInviteOpen(true)}>{t('invite.inviteFriends')}</Press>
           <Press size="size-sm" intent="intent-ghost" onClick={()=>{setFollowingOnly(false);setQuery('');setSearchOpen(true)}}>{t('leaders.findPlayers')}</Press></div>
       </section>}
-      {!searchOpen && status === 'ready' && (rows.length > 0 || board?.me) && (
+      {!searchOpen && status === 'ready' && visibleRows.length > 0 && (
         <div ref={list} className={`pl-lb-list ${styles.list}`} tabIndex={0} role="region" aria-label={t('leaders.standings')}>
           {visibleRows.map((l, k) => (
             <Fragment key={l.userId ?? `r${k}`}>

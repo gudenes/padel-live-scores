@@ -2289,6 +2289,8 @@
       "communityBody": "A seguir, escolhe o teu nome e avatar.",
       "browse": "Ver jogos",
       "loading": "A preparar o teu jogador…",
+      "loadingHint": "A preparar o teu avatar e as tuas jogadas.",
+      "loadingSlow": "Está a demorar um pouco mais do que o habitual. Continuamos a ligar.",
       "loadError": "Não foi possível carregar o teu jogador. Tenta novamente.",
       "showLogin": "Ver acesso",
       "loginPreview": "Pré-visualização do acesso",
