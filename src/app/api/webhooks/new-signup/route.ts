@@ -1,5 +1,5 @@
 // src/app/api/webhooks/new-signup/route.ts
-// Supabase Database Webhook handler — sends a Telegram notification on new
+// Supabase Database Webhook handler — sends Telegram and optional Discord notifications on new
 // user signup. Triggered by INSERT on public.users (the Auth.js users table),
 // fired by the notify_new_signup() trigger in 20260516_signup_tracking_fix.sql.
 //
@@ -8,6 +8,7 @@
 
 import { createServerClient } from '@/lib/supabase'
 import { sendMessage, getDefaultChatId } from '@/lib/nacho-watch/telegram'
+import { sendDiscordSignup } from '@/lib/discord-signup'
 
 type Record = {
   id?: string
@@ -25,14 +26,16 @@ type Payload = {
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     console.error('[new-signup] Unauthorized — auth header mismatch')
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
     const payload = (await request.json()) as Payload
-    console.log('[new-signup] Received webhook:', JSON.stringify(payload).slice(0, 500))
+    if (payload.type !== 'INSERT' || payload.table !== 'users' || payload.schema !== 'public') {
+      return Response.json({ ok: true, skipped: true })
+    }
 
     const record = payload.record
     if (!record?.id) {
@@ -81,9 +84,16 @@ export async function POST(request: Request) {
       `👥 Total users: ${count ?? '?'}`,
     ].join('\n')
 
-    await sendMessage(getDefaultChatId(), message, 'HTML')
-
-    console.log('[new-signup] Telegram message sent for user', record.id)
+    // Attempt both destinations even if one fails.
+    const results = await Promise.allSettled([
+      Promise.resolve().then(() => sendMessage(getDefaultChatId(), message, 'HTML')),
+      sendDiscordSignup(provider, count),
+    ])
+    const failures = results.filter((result) => result.status === 'rejected')
+    if (failures.length) {
+      console.error('[new-signup] Notification delivery failed', failures)
+      return Response.json({ error: 'Notification delivery failed' }, { status: 502 })
+    }
     return Response.json({ ok: true, userId: record.id })
   } catch (err) {
     console.error('[new-signup] Error:', err)
