@@ -140,15 +140,27 @@ export default function PlayPage() {
   const list = useMemo(() => unplayedFirst(filterMarkets(markets.data?.markets ?? [], marketFilter, new Date()), me.data?.positions ?? []), [markets.data, marketFilter, me.data?.positions])
 
 
+  // Returning to the market directory must also clear a match deep link.
+  // Keep the URL in sync so a reload does not silently restore that restriction.
+  const showAllMarkets = useCallback(() => {
+    setLinkedMatch(null)
+    setMarketFilter('all')
+    const url = new URL(window.location.href)
+    url.searchParams.delete('match')
+    url.searchParams.delete('view')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [])
+
   // ── Screen switching ──────────────────────────────────────────
   const goto = useCallback((key: SubNavKey) => {
     landingChosen.current = true
     if (key === 'leaders') setLeadersOpened(true)
+    if (key === 'markets') showAllMarkets()
     // Leaving the deck dismisses the detail sheet — coming back to a sheet the
     // user navigated away from would be a surprise.
     setDetail(null)
     setScreen(key === 'markets' ? 'deck' : key)
-  }, [])
+  }, [showAllMarkets])
 
   const dismissConfirmation = useCallback(() => setConfirmed(null), [])
 
@@ -297,10 +309,10 @@ export default function PlayPage() {
           {markets.status === 'ready' && list.length === 0 && (
             <Blank icon="deck" title={t(marketFilter === 'all' ? 'deck.empty.title' : 'filters.empty')}
               body={t(marketFilter === 'all' ? 'deck.empty.body' : 'filters.emptyBody')}
-              action={linkedMatch || marketFilter !== 'all' ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all') }}>{t('filters.showAll')}</Press> : undefined} />
+              action={linkedMatch || marketFilter !== 'all' ? <Press size="size-sm" onClick={showAllMarkets}>{t('filters.showAll')}</Press> : undefined} />
           )}
           {markets.status === 'ready' && list.length > 0 && (
-            <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
+            <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={showAllMarkets}>{t('filters.showAll')}</Press>}<MarketFeed
               key={marketFilter}
               markets={list}
               completedTrade={feedTrade}
