@@ -1,7 +1,7 @@
 'use client'
 import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 // src/components/nav/BottomNavV3.tsx
-// Redesigned 3-tab bottom nav: Scores / Home (brand icon) / Feed
+// Fixed four-slot bottom nav: Home / Matches / Ranking / Play
 // Uses PadelNachos brand language: chunky shapes, green active state.
 //
 // Phase 1 of the bottom-nav speed work (2026-04-27):
@@ -13,7 +13,7 @@ import {PREDICT_LAUNCH_ENABLED} from '@/lib/predict-launch'
 //     to a tab. Means swiping back to Feed lands where you left off.
 
 import JoystickSprite from './JoystickSprite'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
@@ -81,13 +81,9 @@ function RankingIcon({ color }: { color: string }) {
 
 // ── Colors ──────────────────────────────────────────────────────
 const GREEN = '#7ED321'
-const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const DIM = '#4B5563'
 const LIVE_RED = '#FF4655'
 
-// Width of the shared ink-bar — must match the CSS rule below so
-// the measurement code can centre it under the active tab.
-const INK_BAR_WIDTH = 48
 
 // ── Tabs ────────────────────────────────────────────────────────
 //
@@ -142,11 +138,11 @@ export default function BottomNavV3() {
   const lastTabRef = useRef<string | null>(null)
 
   // ── Play tab visibility ──────────────────────────────────────
-  // Cosmetic only. /api/play/access answers 200 {allowed:false} rather than
-  // 404 precisely because the nav asks it on every page, and we start from
-  // `false` so the first paint never flashes a tab the user can't open.
-  const [playAllowed, setPlayAllowed] = useState(false)
+  // Public launch renders Play immediately, avoiding a Following-to-Play
+  // swap after mounting. Restricted launches still check account access.
+  const [playAllowed, setPlayAllowed] = useState(PREDICT_LAUNCH_ENABLED)
   useEffect(() => {
+    if (PREDICT_LAUNCH_ENABLED) return
     let cancelled = false
     fetch('/api/play/access', { headers: { Accept: 'application/json' } })
       .then((r) => (r.ok ? r.json() : null))
@@ -168,79 +164,6 @@ export default function BottomNavV3() {
   const activeKey = tabKeyFromPath(pathname) ?? 'home'
   const showRankingNudge =
     latestRankingsWeek !== null && latestRankingsWeek !== lastVisitedRankingsWeek
-
-  // ── Option D animation refs ──────────────────────────────────
-  // Single ink-bar that slides between tabs (the "C" half of A×C),
-  // layered with a spring icon kick + letter cascade on the newly
-  // active tab (the "A" half). See `mockup-bottom-nav-animations.html`.
-  const navRef = useRef<HTMLElement | null>(null)
-  const inkBarRef = useRef<HTMLDivElement | null>(null)
-  const tabRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
-  const previousActiveKeyRef = useRef<string>(activeKey)
-  const isFirstPositionRef = useRef(true)
-  const [previousActiveKey, setPreviousActiveKey] = useState<string | null>(null)
-
-  // Measure the active tab and animate the ink bar to it.
-  // useLayoutEffect avoids the visible "snap from 0px" frame that
-  // useEffect would produce on first mount.
-  useLayoutEffect(() => {
-    const nav = navRef.current
-    const activeTab = tabRefs.current.get(activeKey)
-    if (!nav || !activeTab) return
-
-    const navRect = nav.getBoundingClientRect()
-    const tabRect = activeTab.getBoundingClientRect()
-    const x = tabRect.left - navRect.left + (tabRect.width - INK_BAR_WIDTH) / 2
-
-    const previousX = parseFloat(nav.style.getPropertyValue('--bar-x') || '0') || 0
-
-    if (isFirstPositionRef.current) {
-      // First paint — position bar without any animation.
-      nav.style.setProperty('--bar-x', `${x}px`)
-      nav.style.setProperty('--bar-x-from', `${x}px`)
-      isFirstPositionRef.current = false
-      previousActiveKeyRef.current = activeKey
-      return
-    }
-
-    if (previousActiveKeyRef.current === activeKey) return
-
-    // Trigger the slide: set from/to vars, force reflow, toggle the
-    // animation class. Removing the class after the keyframe duration
-    // restores the bar to a clean transition-only state for resize.
-    nav.style.setProperty('--bar-x-from', `${previousX}px`)
-    nav.style.setProperty('--bar-x', `${x}px`)
-    nav.classList.remove('v3-nav-animating')
-    void nav.offsetWidth
-    nav.classList.add('v3-nav-animating')
-
-    setPreviousActiveKey(previousActiveKeyRef.current)
-    previousActiveKeyRef.current = activeKey
-
-    const ANIM_MS = 360
-    const cleanupTimer = window.setTimeout(() => {
-      nav.classList.remove('v3-nav-animating')
-      setPreviousActiveKey(null)
-    }, ANIM_MS + 40)
-    return () => window.clearTimeout(cleanupTimer)
-  }, [activeKey, tabs])
-
-  // Reposition the ink bar on viewport resize (e.g. orientation flip).
-  // Reads the active tab's current rect — no animation, just a snap.
-  useEffect(() => {
-    function handleResize() {
-      const nav = navRef.current
-      const activeTab = tabRefs.current.get(activeKey)
-      if (!nav || !activeTab) return
-      const navRect = nav.getBoundingClientRect()
-      const tabRect = activeTab.getBoundingClientRect()
-      const x = tabRect.left - navRect.left + (tabRect.width - INK_BAR_WIDTH) / 2
-      nav.style.setProperty('--bar-x', `${x}px`)
-      nav.style.setProperty('--bar-x-from', `${x}px`)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [activeKey, tabs])
 
   // Per-tab scroll restoration. The save-side runs on the link's
   // onClick (BELOW) — we have to capture scrollY *before* Next.js
@@ -347,7 +270,6 @@ export default function BottomNavV3() {
     <>
       <style dangerouslySetInnerHTML={{ __html: NAV_STYLES }} />
       <nav
-        ref={navRef}
         className="v3-nav"
         style={{
           position: 'fixed',
@@ -363,40 +285,26 @@ export default function BottomNavV3() {
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderTop: '1px solid rgba(255,255,255,0.04)',
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'flex-end',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          alignItems: 'end',
           paddingTop: 4,
           paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
           zIndex: 200,
         }}
       >
-        {/* Shared ink-bar that slides between tabs. Position controlled
-            via --bar-x / --bar-x-from CSS vars set from the layout
-            effect. transition handles resize/idle moves; the
-            v3-nav-animating class triggers the keyframe slide+stretch
-            for tab-to-tab transitions. */}
-        {/* The raised Play pod is its own active indicator — an ink bar
-            underneath it would just collide with the skirt. */}
-        <div
-          ref={inkBarRef}
-          className={`v3-ink-bar${activeKey === 'play' ? ' v3-ink-hidden' : ''}`}
-          aria-hidden
-        />
-
+        <div className="v3-ink-bar" aria-hidden="true" style={{
+          left: `calc(${(Math.max(0,tabs.findIndex(tab=>tab.key===activeKey)) + .5)*25}% - 24px)`,
+          opacity: activeKey === 'play' ? 0 : 1,
+        }}/>
         {tabs.map((tab) => {
           const isActive = activeKey === tab.key
-          const wasActive = previousActiveKey === tab.key
           // Play is always lime: it's the hero action, not a state.
           const color = isActive || tab.key === 'play' ? GREEN : DIM
 
           return (
             <Link
               key={tab.key}
-              ref={(el) => {
-                if (el) tabRefs.current.set(tab.key, el)
-                else tabRefs.current.delete(tab.key)
-              }}
               href={tab.href}
               prefetch={true}
               aria-label={t(tab.labelKey)}
@@ -406,22 +314,23 @@ export default function BottomNavV3() {
               onKeyDown={tab.key==='play'?event=>{if(event.key==='Enter')setJoystickPressed(true)}:undefined}
               onKeyUp={tab.key==='play'?()=>setJoystickPressed(false):undefined}
               onBlur={tab.key==='play'?()=>setJoystickPressed(false):undefined}
-              className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}${tab.key === 'play' ? ' v3-tab-play' : ''}`}
+              className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${tab.key === 'play' ? ' v3-tab-play' : ''}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
-                padding: '6px 16px',
+                padding: '6px 4px',
+                height: 60,
+                minWidth: 0,
+                boxSizing: 'border-box',
+                justifyContent: 'center',
                 position: 'relative',
                 textDecoration: 'none',
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Play — the marquee tab. Raised above the bar on the same
-                  chunky press idiom as every primary CTA (face + skirt, face
-                  stamps down on press), so it reads as part of the system
-                  rather than a bolted-on FAB. */}
+              {/* The sprite sits inside a fixed slot without affecting layout. */}
               {tab.key === 'play' ? (
                 <span className="v3-joystick-press" aria-hidden="true">
                   <JoystickSprite attention={!isActive}/>
@@ -463,9 +372,7 @@ export default function BottomNavV3() {
               </div>
               )}
 
-              {/* Label — split into per-character spans so the active
-                  tab can cascade its letters in. aria-label keeps it
-                  one word for screen readers. */}
+              {/* Labels keep the same position across tab changes. */}
               {tab.key !== 'play' && <NavLabel
                 text={t(tab.labelKey)}
                 isActive={isActive}
@@ -479,58 +386,9 @@ export default function BottomNavV3() {
   )
 }
 
-// ── Label letter-cascade helper ─────────────────────────────────
-// Renders each letter as an inline-block span so the active-tab CSS
-// can stagger them in. Delays are stable per text/active pair so
-// React doesn't re-randomize across unrelated re-renders.
-function NavLabel({
-  text,
-  isActive,
-  color,
-}: {
-  text: string
-  isActive: boolean
-  color: string
-}) {
-  // Deterministic per-letter jitter so the cascade feels playful but
-  // stays identical between SSR and client render (Math.random() here
-  // would trigger a hydration mismatch).
-  const delays = useMemo(() => {
-    return text.split('').map((ch, i) => {
-      const seed = (ch.charCodeAt(0) * 13 + i * 7) % 30
-      return i * 14 + seed
-    })
-  }, [text])
-  // isActive is read by the CSS animation selector, not by JS — keeping
-  // it in the signature to make the contract explicit.
-  void isActive
-
-  return (
-    <span
-      aria-label={text}
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 0.3,
-        color,
-        textTransform: 'uppercase',
-        position: 'relative',
-        zIndex: 1,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {text.split('').map((ch, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className="v3-nav-ch"
-          style={{ animationDelay: `${delays[i] ?? 0}ms` }}
-        >
-          {ch === ' ' ? ' ' : ch}
-        </span>
-      ))}
-    </span>
-  )
+// Labels stay still when the active tab changes.
+function NavLabel({text,color}:{text:string;isActive:boolean;color:string}) {
+  return <span style={{fontSize:10,fontWeight:700,letterSpacing:0.3,color,textTransform:'uppercase',whiteSpace:'nowrap'}}>{text}</span>
 }
 
 const NAV_STYLES = `
@@ -575,87 +433,10 @@ const NAV_STYLES = `
     z-index: 3;
   }
 
-  /* ── Play pod ─────────────────────────────────────────────────
-     The marquee tab, raised above the bar on the same chunky press
-     idiom as every primary CTA: a skirt offset down by 5px and a face
-     that stamps onto it on :active. Always lime — Play is the hero
-     action, not a state, so it does not dim when another tab is
-     active. Tokens come from globals.css; nothing new is invented. */
-  .v3-nav-tab.v3-tab-play { justify-content:center; min-width:64px; min-height:54px; }
-  .v3-joystick-press { display:block; width:88px; height:88px; margin-top:-25px; margin-bottom:-5px; z-index:2; }
+  /* The original chunky top notch moves independently of the fixed slots. */
+  .v3-ink-bar { position:absolute; top:0; width:48px; height:5px; background:${GREEN}; clip-path:polygon(3% 5%,97% 0%,100% 95%,0% 100%); pointer-events:none; transition:left .36s cubic-bezier(.34,1.56,.64,1); }
+  @media(prefers-reduced-motion:reduce){ .v3-ink-bar { transition:none; } }
+  .v3-tab-play.v3-tab-active::after { content:''; position:absolute; bottom:0; left:calc(50% - 10px); width:20px; height:3px; background:#7ed321; border-radius:2px; }
+  .v3-joystick-press { position:absolute; display:block; width:70.4px; height:70.4px; bottom:4px; left:calc(50% - 35.2px); z-index:2; }
   .v3-tab-play:focus-visible { outline:2px solid #b6e688; outline-offset:-2px; }
-  .v3-tab-play.v3-tab-active::after { content:''; position:absolute; bottom:4px; width:20px; height:3px; background:#7ed321; border-radius:2px; }
-  /* The pod is its own active indicator; the bar would collide with
-     the skirt. Opacity rather than display:none so the bar keeps its
-     measured position for the slide back out. */
-  .v3-ink-bar.v3-ink-hidden { opacity: 0; }
-
-  /* ── Option D · Ink Slide + Spring ───────────────────────────
-     Single shared ink-bar that physically slides between tabs
-     (smooth single-arc translate, scale stretches during slide).
-     New active icon does a spring kick + rotate; old icon falls
-     softly; label letters cascade in. */
-  .v3-ink-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: ${INK_BAR_WIDTH}px;
-    height: 5px;
-    background: ${GREEN};
-    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
-    transform: translate3d(var(--bar-x, 0px), 0, 0) scaleX(1) scaleY(1);
-    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: none;
-    z-index: 0;
-  }
-  .v3-nav.v3-nav-animating .v3-ink-bar {
-    animation: v3-bar-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes v3-bar-slide {
-    0%   { transform: translate3d(var(--bar-x-from), 0, 0) scaleX(1) scaleY(1); }
-    60%  { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1.5) scaleY(0.6); }
-    100% { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1) scaleY(1); }
-  }
-
-  .v3-nav-tab.v3-tab-active .v3-nav-icon {
-    animation: v3-icon-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .v3-nav-tab.v3-tab-was-active .v3-nav-icon {
-    animation: v3-icon-fall 0.22s ease-out;
-  }
-  @keyframes v3-icon-kick {
-    0%   { transform: translateY(4px)  rotate(0deg)   scale(0.9); }
-    35%  { transform: translateY(-7px) rotate(-9deg)  scale(1.22); }
-    65%  { transform: translateY(2px)  rotate(5deg)   scale(0.94); }
-    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
-  }
-  @keyframes v3-icon-fall {
-    0%   { transform: translateY(0)   scale(1); }
-    100% { transform: translateY(2px) scale(0.94); }
-  }
-
-  .v3-nav-ch {
-    display: inline-block;
-  }
-  .v3-nav-tab.v3-tab-active .v3-nav-ch {
-    animation: v3-letter-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-  }
-  @keyframes v3-letter-drop {
-    0%   { transform: translateY(-8px); opacity: 0; }
-    100% { transform: translateY(0);    opacity: 1; }
-  }
-
-  /* Respect users who prefer no motion — keep instant color change,
-     drop the springs. The ink-bar still slides via transition (which
-     prefers-reduced-motion doesn't suppress at the OS level by
-     default), but no overshoot animation. */
-  @media (prefers-reduced-motion: reduce) {
-    .v3-ink-bar { transition: transform 0s; }
-    .v3-nav.v3-nav-animating .v3-ink-bar { animation: none; }
-    .v3-nav-tab.v3-tab-active .v3-nav-icon,
-    .v3-nav-tab.v3-tab-was-active .v3-nav-icon,
-    .v3-nav-tab.v3-tab-active .v3-nav-ch {
-      animation: none;
-    }
-  }
 `

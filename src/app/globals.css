@@ -545,6 +545,13 @@ button:focus { outline: none; }
      ops dashboard's sidebar nav, nested several layers deep inside
      .ops-route — would otherwise inherit `width: 100%` and eat the
      whole viewport. Direct-child scoping prevents that collision. */
+  /* Reserve the nav's 81px even while a route shows a short loading state.
+     Sticky positioning alone lets its normal-flow position rise on short pages. */
+  .app-screen:has(> .v3-nav) > [data-app-route-shell] {
+    min-height: calc(100% - 81px);
+    box-sizing: border-box;
+  }
+
   .app-screen > nav {
     position: sticky !important;
     bottom: 0 !important;
