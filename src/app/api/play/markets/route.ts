@@ -1,3 +1,4 @@
+import { paginatedSelect } from '@/lib/db-paginate'
 import { simulationVolumes } from '@/lib/local-market-activity'
 // src/app/api/play/markets/route.ts
 // GET /api/play/markets?locale=en
@@ -26,7 +27,7 @@ const LIMIT = 30
 export async function GET(req: Request) {
   const access = await requirePlayAccess()
   if (!access) return playNotFound()
-  const { supabase } = access
+  const { supabase, userId } = access
 
   const params = new URL(req.url).searchParams
   const locale = parseLocale(params.get('locale'))
@@ -62,6 +63,16 @@ export async function GET(req: Request) {
     totalAvailable = total.count ?? 0
   }
 
+  // Count globally, including markets beyond the first page or a match deep link.
+  // A previous buy counts as played even if the player subsequently sold it.
+  const played = await paginatedSelect<{market_id:string}>((start,end) => supabase
+    .from('market_trades').select('market_id,markets!inner(id)')
+    .eq('user_id',userId).eq('direction','buy')
+    .eq('markets.status','open').gt('markets.locks_at',nowIso)
+    .order('id').range(start,end), {what:'played open markets'})
+  const playedMarketIds = [...new Set(played.map(row=>row.market_id))]
+  const unplayedCount = Math.max(0,totalAvailable-playedMarketIds.length)
+
   const rows = (data ?? []) as unknown as MarketRow[]
   const now = Date.now()
 
@@ -85,6 +96,8 @@ export async function GET(req: Request) {
   for (const r of volumeRows) if(r.match_id) matchVolumes[r.match_id]=(matchVolumes[r.match_id] ?? 0)+Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0)
   return Response.json({
     totalAvailable,
+    unplayedCount,
+    playedMarketIds,
     markets: rows.map((r) => ({ ...describeMarket(r, locale, now, { form, h2h, editorial }), volumeGuacas: Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0), matchVolumeGuacas: r.match_id ? matchVolumes[r.match_id] : null, book: { qYes: Number(r.q_yes), qNo: Number(r.q_no), b: Number(r.lmsr_b) } })),
   })
 }

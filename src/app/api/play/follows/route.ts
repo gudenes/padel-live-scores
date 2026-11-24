@@ -12,7 +12,7 @@ export async function GET(req:Request){
  const target=new URL(req.url).searchParams.get('userId')??access.userId
  if(!uuid.test(target))return reply({error:'invalid_target'},400)
  const {supabase,userId}=access
- const member=await supabase.from('play_access').select('user_id').eq('user_id',target).maybeSingle()
+ const member=await supabase.from('profiles').select('id').eq('id',target).maybeSingle()
  if(member.error)return reply({error:'unavailable'},503)
  if(!member.data)return reply({error:'not_found'},404)
  try{
@@ -34,7 +34,7 @@ export async function POST(req:Request){
  try{body=await req.json()}catch{return reply({error:'invalid_request'},400)}
  if(typeof body.userId!=='string'||!uuid.test(body.userId)||typeof body.follow!=='boolean'||body.userId===access.userId)return reply({error:'invalid_target'},400)
  const {supabase,userId}=access
- const member=await supabase.from('play_access').select('user_id').eq('user_id',body.userId).maybeSingle()
+ const member=await supabase.from('profiles').select('id').eq('id',body.userId).maybeSingle()
  if(member.error)return reply({error:'unavailable'},503)
  if(!member.data)return reply({error:'not_found'},404)
  const result=body.follow

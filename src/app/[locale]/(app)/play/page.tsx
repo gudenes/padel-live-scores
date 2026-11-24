@@ -85,6 +85,7 @@ export default function PlayPage() {
   const [feedTrade, setFeedTrade] = useState<ConfirmedTrade | null>(null)
   const [confirmed, setConfirmed] = useState<ConfirmedTrade | null>(null)
   const invite=useInvitePrompt(user?.id,!!confirmed||!!detail||screen==='trade'||firstSuccess||!!onboarding.progress&&onboarding.progress.step!=='done',onboarding.preview)
+  const [justPlayed, setJustPlayed] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [tradeError, setTradeError] = useState<string | null>(null)
   // The trade response knows the new balance before /api/play/me is refetched.
@@ -125,6 +126,12 @@ export default function PlayPage() {
     30_000,
     true,
   )
+
+  // Remove optimistic deductions once the server acknowledges those plays.
+  useEffect(()=>{
+    const acknowledged = new Set(markets.data?.playedMarketIds ?? [])
+    setJustPlayed(ids=>ids.some(id=>acknowledged.has(id)) ? ids.filter(id=>!acknowledged.has(id)) : ids)
+  },[markets.data])
 
   // Resolve the default once. Direct links and manual navigation win.
   useEffect(() => {
@@ -245,6 +252,7 @@ export default function PlayPage() {
           shares: payload.shares ?? 0,
           avgPrice: payload.avgPrice ?? 0,
         }
+        setJustPlayed(ids=>[...new Set([...ids,pending.market.id])])
         setConfirmed(completedTrade)
         setFeedTrade(completedTrade)
         if (typeof payload.balance === 'number') setBalanceAfterTrade(payload.balance)
@@ -280,7 +288,7 @@ export default function PlayPage() {
       <div className="pl-brand-header"><GlobalHeader playerWallet={<PlayerWallet walletKey={onboarding.preview?undefined:me.data?.walletKey} previewAvatar={onboarding.preview?onboarding.progress?.avatar:undefined} welcome={guideStep==='wallet'} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
 
       {subnavKey && (
-        <SubNav availableCount={markets.data?.totalAvailable} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />
+        <SubNav availableCount={markets.data?.unplayedCount === undefined ? undefined : Math.max(0,markets.data.unplayedCount-justPlayed.filter(id=>!markets.data!.playedMarketIds.includes(id)).length)} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />
       )}
 
       {(screen === 'mine' || screen === 'activity') && <div className="pl-personal-heading">

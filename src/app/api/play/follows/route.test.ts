@@ -1,10 +1,10 @@
 import {beforeEach,expect,it,vi} from 'vitest'
 const {access,table,query}=vi.hoisted(()=>{
- const query:any={select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(),upsert:vi.fn(),delete:vi.fn()}
+ const query:any={select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(),upsert:vi.fn(),delete:vi.fn(),order:vi.fn(),range:vi.fn()}
  return {access:vi.fn(),table:vi.fn(),query}
 })
 vi.mock('@/lib/play-access',()=>({requirePlayAccess:access}))
-import {POST} from './route'
+import {GET,POST} from './route'
 const me='11111111-1111-1111-1111-111111111111',target='22222222-2222-2222-2222-222222222222'
 beforeEach(()=>{
  vi.clearAllMocks();table.mockReturnValue(query)
@@ -19,8 +19,11 @@ it('requires play access and rejects self follows and cross-origin writes',async
  expect((await POST(request(target,'https://other.example'))).status).toBe(403)
  expect(query.upsert).not.toHaveBeenCalled()
 })
-it('saves idempotently under the authenticated follower, only for a play member',async()=>{
+it('saves idempotently under the authenticated follower, for a registered profile without requiring the retired whitelist',async()=>{
  expect((await POST(request())).status).toBe(200)
+ expect(table).toHaveBeenCalledWith('profiles')
+ expect(table).not.toHaveBeenCalledWith('play_access')
+ expect(query.eq).toHaveBeenCalledWith('id',target)
  expect(query.upsert).toHaveBeenCalledWith({follower_id:me,following_id:target},{onConflict:'follower_id,following_id',ignoreDuplicates:true})
  query.maybeSingle.mockResolvedValueOnce({data:null,error:null})
  expect((await POST(request())).status).toBe(404)
@@ -38,4 +41,13 @@ it('accepts the browser origin when Next rewrites the local hostname',async()=>{
  const req=new Request('http://127.0.0.1:3012/api/play/follows',{method:'POST',headers:{origin:'http://localhost:3012',host:'localhost:3012','Content-Type':'application/json'},body:JSON.stringify({userId:target,follow:true})})
  expect((await POST(req)).status).toBe(200)
  vi.unstubAllEnvs()
+})
+
+it('loads follow controls for a public member outside the old whitelist',async()=>{
+ query.order.mockReturnValue(query);query.range.mockResolvedValue({data:[],error:null})
+ const response=await GET(new Request('http://localhost:3012/api/play/follows'))
+ expect(response.status).toBe(200)
+ expect(table).toHaveBeenCalledWith('profiles')
+ expect(table).not.toHaveBeenCalledWith('play_access')
+ expect(await response.json()).toMatchObject({followingIds:[]})
 })

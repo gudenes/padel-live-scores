@@ -24,15 +24,18 @@ export async function loadSimulationLeaderboard(req: Request, supabase: Supabase
   let participants: { bot_id: string; created_at: number }[] = []
   const historyStart = Date.parse(leaderboardWeek(520).start)
   if (process.env.NODE_ENV === 'production' && process.env.PLAY_SIMULATION_ENABLED === 'true') {
-    const [botRows, positionRows, marketRows] = await Promise.all([
+    // The project supports 10k rows per page. Use that capacity for the
+    // large simulation tables and fetch participation alongside positions.
+    const [botRows, positionRows, marketRows, participationRows] = await Promise.all([
       paginatedSelect<Bot>((a,b)=>supabase.from('play_sim_bots').select('id,name').eq('prize_eligible',0).order('id').range(a,b),{what:'simulation players'}),
-      paginatedSelect<{bot_id:string;market_id:string;side:string;shares:number;cost:number}>((a,b)=>supabase.from('play_sim_positions').select('bot_id,market_id,side,shares,cost').order('bot_id').order('market_id').order('side').range(a,b),{what:'simulation positions'}),
+      paginatedSelect<{bot_id:string;market_id:string;side:string;shares:number;cost:number}>((a,b)=>supabase.from('play_sim_positions').select('bot_id,market_id,side,shares,cost').order('bot_id').order('market_id').order('side').range(a,b),{what:'simulation positions',pageSize:10_000}),
       paginatedSelect<{id:string;source_market_id:string|null}>((a,b)=>supabase.from('play_sim_markets').select('id,source_market_id').order('id').range(a,b),{what:'simulation markets'}),
-    ])
-    if (includeHistory) participants = await paginatedSelect<{bot_id:string;created_at:number}>(
+      includeHistory ? paginatedSelect<{bot_id:string;created_at:number}>(
       (a,b)=>supabase.from('play_sim_trades').select('bot_id,created_at,play_sim_markets!inner(source_market_id)')
         .not('play_sim_markets.source_market_id','is',null).gte('created_at',historyStart).lt('created_at',Date.parse(leaderboardWeek().end))
-        .order('id').range(a,b),{what:'simulation participation history'})
+        .order('id').range(a,b),{what:'simulation participation history',pageSize:10_000}) : Promise.resolve([]),
+    ])
+    participants = participationRows
     bots=botRows
     const sources=new Map(marketRows.map(m=>[m.id,m.source_market_id]))
     holdings=positionRows.map(p=>({...p,source_market_id:sources.get(p.market_id)??null}))
