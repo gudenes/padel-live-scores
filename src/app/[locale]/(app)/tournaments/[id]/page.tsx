@@ -6,6 +6,7 @@
 import { dedupePremierTournaments, resolvePremierPreviousEdition } from '@/lib/premier-editions'
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { isLeagueLevel } from '@/lib/league-levels'
+import { hasPplLiveScore } from '@/lib/tournament-tier'
 import { titleCase } from '@/lib/title-case'
 import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
@@ -178,6 +179,9 @@ function hasResolvedPair(m: unknown, pairN: 1 | 2): boolean {
   const p1Name = r[`pair${pairN}_player1_name`]
   const p2Id = r[`pair${pairN}_player2_id`]
   const p2Name = r[`pair${pairN}_player2_name`]
+  const level = (r.tournament as { level?: string } | undefined)?.level
+  // PPL fixtures are created before lineups: show them only once all players are assigned.
+  if (level === 'ppl' || level === 'ppl_ii') return !!(p1Id && p2Id)
   return !!(p1Id || p1Name || p2Id || p2Name)
 }
 
@@ -1195,7 +1199,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                     const parts: string[] = []
                     if (activeTournamentObj.starts_at && activeTournamentObj.ends_at) {
                       parts.push(
-                        `${format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)} – ${format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}`
+                        `${format.dateTime(new Date(activeTournamentObj.starts_at), { ...DATE_SHORT, ...(isLeagueLevel(activeTournamentObj.level) ? { timeZone: 'UTC' } : {}) })} – ${format.dateTime(new Date(activeTournamentObj.ends_at), { ...DATE_SHORT, ...(isLeagueLevel(activeTournamentObj.level) ? { timeZone: 'UTC' } : {}) })}`
                       )
                     }
                     if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
@@ -1265,7 +1269,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         />
 
         {/* Coverage disclaimer */}
-        {activeTournamentObj && tournamentId !== WORLD_CUP.tournamentId && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
+        {activeTournamentObj && tournamentId !== WORLD_CUP.tournamentId && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && !allMatches.some(m => hasPplLiveScore(m, activeTournamentObj.level)) && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px',
@@ -2100,7 +2104,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const isLive = isInDateRange && liveCount > 0 && !finalPlayed
   const isOngoing = isInDateRange && liveCount === 0 && !finalPlayed
 
-  const formatDate = (d: Date) => format.dateTime(d, DATE_WITH_WEEKDAY)
+  const formatDate = (d: Date) => format.dateTime(d, { ...DATE_WITH_WEEKDAY, ...(isLeagueLevel(tournament?.level) ? { timeZone: 'UTC' } : {}) })
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>

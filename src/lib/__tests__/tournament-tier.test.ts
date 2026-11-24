@@ -159,3 +159,31 @@ describe('isPresenceOnlyLive with live PBP data', () => {
     )).toBe(true)
   })
 })
+
+describe('PPL current-score display', () => {
+  const game = { is_current: true, game_score: '15-30', serving_pair: 2, points: [], server_player_id: null }
+  const match = { status: 'live', sets: [{ is_current: true, games: [game] }] }
+  it.each(['ppl', 'ppl_ii'])('shows %s snapshots without pretending to have point history', level => {
+    expect(isPresenceOnlyLive(match, { level })).toBe(false)
+    expect(hasLivePointByPoint(match.sets)).toBe(false)
+  })
+  it.each([
+    { ...game, game_score: null }, { ...game, game_score: '' },
+    { ...game, game_score: 'bad' }, { ...game, game_score: '2-3' },
+    { ...game, serving_pair: null }, { ...game, is_current: false },
+  ])('keeps incomplete or inactive snapshots presence-only: %j', g => {
+    expect(isPresenceOnlyLive({ ...match, sets: [{ is_current: true, games: [g] }] }, { level: 'ppl' })).toBe(true)
+  })
+  it('requires a current set and confirmed live status', () => {
+    expect(isPresenceOnlyLive({ ...match, sets: [{ is_current: false, games: [game] }] }, { level: 'ppl' })).toBe(true)
+    expect(isPresenceOnlyLive({ ...match, status: 'on_court' }, { level: 'ppl' })).toBe(true)
+    expect(isPresenceOnlyLive({ status: 'live' }, { level: 'ppl' })).toBe(true)
+  })
+  it.each([{ ...game, game_score: '0-0' }, { ...game, game_score: '8-9', is_tiebreak: true }])('shows game resets and tiebreaks: %j', g => {
+    expect(isPresenceOnlyLive({ ...match, sets: [{ is_current: true, games: [g] }] }, { level: 'ppl' })).toBe(false)
+  })
+  it('leaves other circuits unchanged for the same snapshot', () => {
+    for (const level of ['p1', 'p2', 'major', 'fip_platinum']) expect(isPresenceOnlyLive(match, { level })).toBe(false)
+    for (const level of ['fip_gold', 'fip_silver', 'fip_bronze', null]) expect(isPresenceOnlyLive(match, { level })).toBe(true)
+  })
+})

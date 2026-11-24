@@ -34,7 +34,7 @@ import { useTranslations } from 'next-intl'
 import type { MatchPoints } from '@/lib/live-race/qualifying'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
-import { isPremierTier } from '@/lib/tournament-tier'
+import { isPremierTier, hasPplLiveScore } from '@/lib/tournament-tier'
 import { isLeagueLevel } from '@/lib/league-levels'
 
 const GREEN = '#7ED321'
@@ -127,6 +127,7 @@ function tournamentStatusBadge(
   groupBucketCounts: { live: number; upcoming: number; finished: number },
   tournamentStatus: string | null,
   tournamentLevel: string | null | undefined,
+  hasPplScore = false,
 ): { label: string; bg: string; color: string } | null {
   // The red LIVE pill is reserved for actual live matches. `tournaments.
   // status` from padelapi is too coarse — it reports 'live' for any
@@ -155,7 +156,7 @@ function tournamentStatusBadge(
   // tournament-level `level` is sufficient. See:
   // docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md
   if (groupBucketCounts.live > 0) {
-    if (isPremierTier(tournamentLevel)) {
+    if (isPremierTier(tournamentLevel) || hasPplScore) {
       return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
     }
     return { label: 'ONGOING', bg: 'rgba(245,166,35,0.15)', color: ONGOING_ORANGE }
@@ -222,7 +223,8 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
   const { active, finished } = bucketDayMatches(group.matches)
 
   const [expanded, setExpanded] = useState(true)
-  const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus, group.tournamentLevel ?? null)
+  const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus, group.tournamentLevel ?? null,
+    group.matches.some(m => hasPplLiveScore(m as unknown as Match, group.tournamentLevel)))
 
   // Stage chip — surfaces today's most-advanced round (Final / Semifinals /
   // Quarterfinals / R16 / R32 / R64 / R128 / Qualifying). Drives the
@@ -253,7 +255,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
     group.tournamentStartsAt,
     group.tournamentEndsAt,
     group.locale,
-    group.userTz,
+    isLeagueLevel(group.tournamentLevel) ? 'UTC' : group.userTz,
   )
 
   return (

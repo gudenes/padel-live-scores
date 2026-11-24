@@ -8,10 +8,10 @@ describe('PPL level display', () => {
     expect(levelLabel('ppl_ii')).toBe('PPL II')
   })
 
-  it('sorts below every FIP tier but above the unknown fallback', () => {
-    expect(levelTierWeight('ppl')).toBe(30)
+  it('sorts PPL between Gold and Silver while retaining PPL II priority', () => {
+    expect(levelTierWeight('ppl')).toBeGreaterThan(levelTierWeight('fip_gold'))
+    expect(levelTierWeight('ppl')).toBeLessThan(levelTierWeight('fip_silver'))
     expect(levelTierWeight('ppl_ii')).toBe(31)
-    expect(levelTierWeight('ppl')).toBeGreaterThan(levelTierWeight('fip_other'))
     expect(levelTierWeight('ppl_ii')).toBeLessThan(levelTierWeight('something-unknown'))
   })
 

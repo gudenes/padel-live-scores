@@ -21,6 +21,11 @@ const makeT = (overrides: Partial<TournamentForSort>): TournamentForSort => ({
 })
 
 describe('compareTournamentsForCarousel', () => {
+  it('places PPL below Gold and above Silver without promoting PPL II', () => {
+    const levels = ['ppl_ii', 'fip_silver', 'ppl', 'fip_gold', 'p1']
+    const sorted = levels.map(level => makeT({ id: level, level })).sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['p1', 'fip_gold', 'ppl', 'fip_silver', 'ppl_ii'])
+  })
   it('puts Premier tiers before FIP tiers', () => {
     const a = makeT({ id: 'a', level: 'p1' })
     const b = makeT({ id: 'b', level: 'fip_gold' })

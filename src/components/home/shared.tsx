@@ -320,7 +320,7 @@ export const PAGE_STYLES = `
 `
 
 export const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
-// Premier Padel + Platinum have live scoring
+// Levels shown as individual live match cards on Home; PPL stays in its tournament.
 export const LIVE_SCORE_LEVELS = [...PREMIER_LEVELS, 'fip_platinum']
 
 // Levels temporarily hidden from user-facing tournament/event surfaces.
