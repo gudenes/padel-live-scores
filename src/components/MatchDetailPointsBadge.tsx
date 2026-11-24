@@ -26,8 +26,7 @@ export default function MatchDetailPointsBadge({ matchId, tournamentId, level, r
     const timer = setInterval(() => { if (!document.hidden) void refresh() }, 60_000)
     return () => { controller.abort(); clearInterval(timer) }
   }, [qualifying, tournamentId])
-  const label = round?.replace(/^semi.*$/i, 'SF').replace(/^quarter.*$/i, 'QF').replace(/^round of (16|32|64)$/i, 'R$1') ?? null
-  const award: MatchPoints | null | undefined = qualifying ? draw?.tournamentId === tournamentId ? draw?.matches[matchId] : null : matchRoundPoints(level, label, season)
+  const award: MatchPoints | null | undefined = qualifying ? draw?.tournamentId === tournamentId ? draw?.matches[matchId] : null : matchRoundPoints(level, round, season)
   if (!award) return null
   return <MatchPointsBadge round={award.currentRound ?? round} nextRound={award.nextRound} points={award.winner} loserPoints={award.loser} qualifying={qualifying} qualificationBonus={award.qualificationBonus} />
 }

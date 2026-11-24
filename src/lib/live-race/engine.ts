@@ -1,3 +1,4 @@
+import { canonicalPointsRound } from './round-progression.ts'
 import type { Award, Breakdown, MatchResult, RacePlayer, Tournament, TournamentResult } from './types.ts'
 
 // 2026 only. Never silently reuse this points schedule for a future season.
@@ -12,8 +13,8 @@ const ROUND: Record<string, number> = { F:1,Final:1,SF:2,'Semi-final':2,QF:3,'Qu
 /** Base tournament total secured by a main-draw win, excluding player bonuses. */
 export function matchRoundPoints(level: string | null | undefined, roundLabel: string | null, season: string): { winner: number; loser: number } | null {
   if (season !== '2026' || !level || !TABLE[level] || !roundLabel) return null
-  const label = roundLabel.trim().toUpperCase()
-  const index = ({ F: 1, FINAL: 1, FINALS: 1, SF: 2, SEMIFINALS: 2, QF: 3, QUARTERFINALS: 3, R16: 4, R32: 5, R64: 6 } as Record<string, number>)[label]
+  const label = canonicalPointsRound(roundLabel)
+  const index = label ? ({ F: 1, SF: 2, QF: 3, R16: 4, R32: 5, R64: 6 } as Record<string, number>)[label] : undefined
   // Only offer points for rounds actually covered by this tier's table.
   if (!index || TABLE[level][index] == null) return null
   return { winner: TABLE[level][index - 1], loser: TABLE[level][index] }

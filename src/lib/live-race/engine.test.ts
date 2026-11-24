@@ -77,3 +77,30 @@ describe('FIP breakdown parsing',()=>{
   expect(()=>parseBreakdown('<html>Access denied</html>')).toThrow()
  })
 })
+
+
+describe('main-draw points round aliases', () => {
+ const cases: [string[], number, number][] = [
+  [['F', 'Final', 'Finals'], 2000, 1200],
+  [['SF', 'Semi-final', 'Semi Finals', '1/2'], 1200, 720],
+  [['QF', 'Quarter-final', 'Quarter Finals', '1/4'], 720, 360],
+  [['R16', 'Round of 16', '1/8'], 360, 180],
+  [['R32', 'Round of 32', '1/16'], 180, 90],
+  [['R64', 'Round of 64', '1/32', '  round   of 64  '], 90, 35],
+ ]
+ for (const [aliases, winner, loser] of cases) {
+  it.each(aliases)('prices %s consistently', round => {
+   expect(matchRoundPoints('major', round, '2026')).toEqual({winner, loser})
+  })
+ }
+ it('supports the affected P1 R64 cards too', () => {
+  expect(matchRoundPoints('p1', 'Round of 64', '2026')).toEqual({winner:45, loser:22})
+ })
+ it.each(['R128', 'Round of 128', '1/64', 'Q1', 'Q2', 'Group stage', 'Round of 64 unknown'])('does not invent points for %s', round => {
+  expect(matchRoundPoints('major', round, '2026')).toBeNull()
+ })
+ it('preserves tier and season restrictions after normalization', () => {
+  expect(matchRoundPoints('p2', 'Round of 64', '2026')).toBeNull()
+  expect(matchRoundPoints('major', 'Round of 64', '2027')).toBeNull()
+ })
+})
