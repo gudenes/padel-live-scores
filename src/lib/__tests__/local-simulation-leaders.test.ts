@@ -42,3 +42,24 @@ it('includes weekly bot trades before settlement without resetting losses',async
  expect(calls.some(x=>x[0]==='play_sim_trades'&&x[1]==='gte'&&x[2]==='created_at'&&typeof x[3]==='number')).toBe(true)
  expect(calls.some(x=>x[0]==='play_sim_trades'&&x[1]==='lt'&&x[2]==='created_at')).toBe(true)
 })
+
+it('keeps scores and participation beyond a 10,000-row simulation page',async()=>{
+ vi.stubEnv('NODE_ENV','production');vi.stubEnv('PLAY_SIMULATION_ENABLED','true')
+ const now=Date.now()
+ const rows:Record<string,unknown[]>={
+  play_sim_bots:[{id:'winner',name:'Winner'},{id:'late',name:'Late'}],
+  play_sim_positions:Array.from({length:10001},(_,i)=>({bot_id:'winner',market_id:`sim-${i}`,side:'yes',shares:2,cost:1})),
+  play_sim_markets:Array.from({length:10001},(_,i)=>({id:`sim-${i}`,source_market_id:'settled'})),
+  play_sim_trades:[...Array.from({length:10000},()=>({bot_id:'winner',created_at:now})),{bot_id:'late',created_at:now}],
+  markets:[{id:'settled',status:'settled',outcome:true,settled_at:new Date(now).toISOString(),season_id:'s'}],
+ }
+ const from=(table:string)=>{
+  let start=0,end=Infinity
+  const q:any={then:(resolve:any)=>Promise.resolve({data:rows[table].slice(start,end+1),error:null}).then(resolve)}
+  for(const method of ['select','eq','order','not','gte','lt','in'])q[method]=()=>q
+  q.range=(a:number,b:number)=>{start=a;end=b;return q}
+  return q
+ }
+ const leaders=await localSimulationLeaders(new Request('https://padelnachos.com'),{from} as unknown as SupabaseClient,'week','s')
+ expect(leaders.map(x=>[x.userId,x.netWinnings])).toEqual([['sim:winner',10001],['sim:late',0]])
+})

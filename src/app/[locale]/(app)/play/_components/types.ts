@@ -400,7 +400,9 @@ function asBook(value: unknown): PlayMarket['book'] {
 export function parseMarketOverview(payload: unknown) {
   const markets = parseMarkets(payload)
   const count = (payload as { totalAvailable?: unknown })?.totalAvailable
-  return { markets, totalAvailable: typeof count === 'number' && Number.isInteger(count) && count >= 0 ? count : markets.length }
+  const remaining = (payload as {unplayedCount?:unknown})?.unplayedCount
+  const played = (payload as {playedMarketIds?:unknown})?.playedMarketIds
+  return { markets, unplayedCount: typeof remaining === 'number' && Number.isInteger(remaining) && remaining >= 0 ? remaining : undefined, playedMarketIds: Array.isArray(played) ? played.filter((id):id is string=>typeof id==='string') : [], totalAvailable: typeof count === 'number' && Number.isInteger(count) && count >= 0 ? count : markets.length }
 }
 
 export function parseMarkets(payload: unknown): PlayMarket[] {
