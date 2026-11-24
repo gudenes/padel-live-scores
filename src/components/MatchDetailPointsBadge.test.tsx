@@ -19,3 +19,8 @@ it('uses verified qualifying data and never guesses Q1 points', async () => {
  resolve({ok:true,json:async()=>({matches:{m:{winner:15,loser:0,qualifying:true}}})})
  expect(await screen.findByRole('button', {name: /15 pts/})).toBeTruthy()
 })
+
+it.each([['Round of 64', 90], ['1/32', 90], ['1/8', 360], ['1/16', 180]] as const)('renders the shared points badge for %s', (round, points) => {
+ render(wrap(<MatchDetailPointsBadge matchId="m" level="major" round={round} season="2026" />))
+ expect(screen.getByRole('button', {name: new RegExp(`${points} pts`)})).toBeTruthy()
+})

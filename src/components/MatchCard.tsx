@@ -295,7 +295,7 @@ export function MatchCard({
 
   const round = formatRound(match.round)
   const pointsBadge: MatchPoints | null = dayBucketIso && !teamCountries
-    ? qualifyingPoints ?? matchRoundPoints(tournamentLevel, round, dayBucketIso.slice(0, 4)) : null
+    ? qualifyingPoints ?? matchRoundPoints(tournamentLevel, match.round, dayBucketIso.slice(0, 4)) : null
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match, tournamentLevel)
   const presenceOnlyLive = isPresenceOnlyLive(

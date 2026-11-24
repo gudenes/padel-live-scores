@@ -1,7 +1,9 @@
 /** Labels only: qualifying destinations must come from a validated full draw. */
 export function canonicalPointsRound(round?: string | null): string | null {
-  const value = round?.trim().toUpperCase()
+  const value = round?.trim().toUpperCase().replace(/\s+/g, ' ')
   if (!value) return null
+  const fraction = ({ '1/2': 'SF', '1/4': 'QF', '1/8': 'R16', '1/16': 'R32', '1/32': 'R64', '1/64': 'R128' } as Record<string, string>)[value]
+  if (fraction) return fraction
   if (/^Q[1-4]$/.test(value)) return value
   if (/^(F|FINALS?)$/.test(value)) return 'F'
   if (/^(SF|SEMI[ -]?FINALS?)$/.test(value)) return 'SF'
