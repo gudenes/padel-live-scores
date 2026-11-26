@@ -28,7 +28,7 @@ interface Props {
   tournamentName: string
   tournamentLevel: string | null
   /** Round pill code, e.g. 'W' for winner, 'SF' for semifinal. */
-  round: TournamentRoundCode
+  round: TournamentRoundCode | null
   /** Right side display: either a € amount or a record string like "5 partidas · 4-1" */
   trailing: string
   /** Show a gold trophy icon at the far right edge (for title rows). */
@@ -94,7 +94,7 @@ export function TournamentRow({
           {titleCase(tournamentName)}
         </div>
         <div style={{ fontSize: 9, color: MUTED, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={pillStyle}>{t(round)}</span>
+          <span style={pillStyle}>{round && t.has(round) ? t(round) : '—'}</span>
           {dateText && <span>· {dateText}</span>}
         </div>
       </div>
