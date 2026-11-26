@@ -142,7 +142,7 @@ export function PlaysWithCard({
               {racketShape && (
                 <div style={specRowStyle}>
                   <span>{t('shape')}</span>
-                  <span style={specValueStyle}>{t(`shape_${racketShape}`)}</span>
+                  <span style={specValueStyle}>{t.has(`shape_${racketShape}`) ? t(`shape_${racketShape}`) : '—'}</span>
                 </div>
               )}
               {racketWeight && (
@@ -154,7 +154,7 @@ export function PlaysWithCard({
               {racketBalance && (
                 <div style={specRowStyle}>
                   <span>{t('balance')}</span>
-                  <span style={specValueStyle}>{(() => { const k = racketBalanceKey(racketBalance); return k ? t(`balance_${k}`) : racketBalance })()}</span>
+                  <span style={specValueStyle}>{(() => { const k = racketBalanceKey(racketBalance); return k ? t(`balance_${k}`) : '—' })()}</span>
                 </div>
               )}
             </div>

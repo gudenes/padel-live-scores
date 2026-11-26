@@ -21,7 +21,7 @@ const LEVEL_FLAG: Record<string, string> = {
 }
 
 export type TournamentRoundCode =
-  | 'W' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'Q1' | 'Q2' | 'Q3'
+  | 'W' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'R128' | 'Q1' | 'Q2' | 'Q3'
 
 interface Props {
   tournamentId: string

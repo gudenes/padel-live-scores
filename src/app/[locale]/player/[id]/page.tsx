@@ -16,7 +16,7 @@ import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/format-patterns'
 import { resolveMatchRoles } from '@/lib/match-roles'
-import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
+import { playerRoundLabel, playerBestRound, playerStatsBreakdown, playerLevelLabel } from '@/lib/player-display'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
@@ -604,8 +604,8 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     <>
       <main style={{ background: BG_BASE, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Player not found</div>
-          <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>Go back</button>
+          <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>{tPlayer('playerNotFound')}</div>
+          <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>{tPlayer('goBack')}</button>
         </div>
       </main>
       <BottomNav />
@@ -632,10 +632,10 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const heroStats: HeroStat[] = []
   if (derived.winRate != null) heroStats.push({ label: tPlayer('winRate'), value: `${derived.winRate}%`, accent: 'green' })
   else if (player.win_rate) heroStats.push({ label: tPlayer('winRate'), value: `${player.win_rate}%`, accent: 'green' })
-  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('season') }, ariaLabel: 'View titles in Season tab' })
+  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('season') }, ariaLabel: tPlayer('viewSeasonTitles') })
   if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
-  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange', onClick: () => { const g = player.category === 'women' ? 'women' : 'men'; router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0]) }, ariaLabel: tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name }) })
+  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: format.number(player.points), accent: 'orange', onClick: () => { const g = player.category === 'women' ? 'women' : 'men'; router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0]) }, ariaLabel: tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name }) })
 
   const hasEarnings = earnings != null && earnings.allTimeEur > 0
   const showNewPill = hasEarnings && shouldShowNewPill()
@@ -670,7 +670,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: MUTED,
             }}
-            aria-label="Go back"
+            aria-label={tPlayer('goBack')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
@@ -738,7 +738,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                     fontFamily: 'inherit',
                   }}
                 >
-                  #{player.ranking} {player.category === 'women' ? 'Women' : player.category === 'men' ? 'World' : 'Ranked'}
+                  #{player.ranking} {player.category === 'women' ? tPlayer('women') : player.category === 'men' ? tPlayer('world') : tPlayer('ranked')}
                 </button>
               )}
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>
@@ -748,8 +748,8 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 {player.country && <FlagImage country={player.country} size={16} />}
                 <span>
                   {[
-                    player.category ? (player.category === 'men' ? 'Men' : 'Women') : null,
-                    (() => { const a = computeAge(player.birthdate); return a != null ? `${a} yrs` : null })(),
+                    player.category ? (player.category === 'men' ? tPlayer('men') : tPlayer('women')) : null,
+                    (() => { const a = computeAge(player.birthdate); return a != null ? tPlayer('ageYrs', { count: a }) : null })(),
                   ].filter(Boolean).join(' · ')}
                 </span>
               </div>
@@ -812,7 +812,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               const tournName = derived.nextScheduled.tournament?.name
                 ? titleCase(derived.nextScheduled.tournament.name)
                 : null
-              const roundStr = derived.nextScheduled.round
+              const roundStr = derived.nextScheduled.round ? playerRoundLabel(derived.nextScheduled.round, tPlayer) : null
               // Title: "vs <opponents> · <round>"; when the opponent slot is
               // still TBD, fall back to the round label, then the tournament name.
               const matchTitle = oppNames
@@ -848,7 +848,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   {derived.nextScheduled.tournament?.level && (
                     <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                      {levelLabel(derived.nextScheduled.tournament.level)}
+                      {playerLevelLabel(derived.nextScheduled.tournament.level, tPlayer)}
                     </div>
                   )}
                 </div>
@@ -879,7 +879,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 {tourn.level && (
                   <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                    {levelLabel(tourn.level)}
+                    {playerLevelLabel(tourn.level, tPlayer)}
                   </div>
                 )}
               </div>
@@ -915,7 +915,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 {enrollment.level && (
                   <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                    {levelLabel(enrollment.level)}
+                    {playerLevelLabel(enrollment.level, tPlayer)}
                   </div>
                 )}
               </div>
@@ -1206,7 +1206,7 @@ function OverviewTab({
                 const roles = resolveMatchRoles(m, playerId)
                 const won = roles.won
                 const isLatest = i === ordered.length - 1
-                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
+                const title = `${won ? t('winShort') : t('lossShort')} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
                 return (
                   <Last10SparkBar
                     key={m.id}
@@ -1228,8 +1228,8 @@ function OverviewTab({
               fontSize: 8, color: MUTED, marginTop: 4,
               textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600,
             }}>
-              <span>Oldest</span>
-              <span style={{ color: ORANGE }}>Latest</span>
+              <span>{t('oldest')}</span>
+              <span style={{ color: ORANGE }}>{t('latest')}</span>
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>
               <b style={{ color: GREEN, fontSize: 14 }}>{winCount}-{lossCount}</b>{' '}
@@ -1241,11 +1241,11 @@ function OverviewTab({
 
       {/* FIP Ranking — always visible alongside Last 10 when ranking is known */}
       {player.ranking != null && (
-        <Widget label="FIP Ranking">
+        <Widget label={t('fipRanking')}>
           <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
           {player.points && (
             <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-              {player.points.toLocaleString()} pts
+              {format.number(player.points)} {t('pointsShort')}
             </div>
           )}
           <WidgetIcon>#</WidgetIcon>
@@ -1260,7 +1260,7 @@ function OverviewTab({
       />
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
-        <Widget wide label="Profile Info">
+        <Widget wide label={t('profileInfo')}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', marginTop: 4 }}>
             {availableProfileRows.map(([label, value]) => (
               <div key={label}>
@@ -1347,10 +1347,11 @@ function PartnersTab({
   router: ReturnType<typeof useRouter>
 }) {
   const format = useFormatter()
+  const t = useTranslations('player')
   if (derived.partnersList.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
-        No partner data yet.
+        {t('noPartners')}
       </div>
     )
   }
@@ -1358,7 +1359,7 @@ function PartnersTab({
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ fontSize: 9, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 4, padding: '0 4px' }}>
-        All Partners ({derived.partnersList.length})
+        {t('allPartners', { count: derived.partnersList.length })}
       </div>
       {derived.partnersList.map(({ partner, wins, losses, lastIso }) => {
         const total = wins + losses
@@ -1383,7 +1384,7 @@ function PartnersTab({
                 </span>
               </div>
               <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
-                {total} {total === 1 ? 'match' : 'matches'} · {wins}-{losses} · Last {lastIso ? formatDate(lastIso, format) : '—'}
+                {t('partnerMatchesLine', { count: total, wins, losses, date: lastIso ? formatDate(lastIso, format) : '—' })}
               </div>
             </div>
             <div style={{
@@ -1558,6 +1559,7 @@ function MatchRow({
   onClick: () => void
   format: ReturnType<typeof useFormatter>
 }) {
+  const t = useTranslations('player')
   const roles = resolveMatchRoles(match, playerId)
   const playerWon = roles.won
   const playerLost = roles.lost
@@ -1572,16 +1574,16 @@ function MatchRow({
     leadNode = (
       <span style={{
         color: LIVE_RED, fontWeight: 800, letterSpacing: 0.3,
-      }}>● LIVE</span>
+      }}>● {t('live')}</span>
     )
   } else if (isScheduled) {
     leadNode = (
       <span style={{ color: '#9ca3af', fontWeight: 800 }}>VS</span>
     )
   } else if (playerWon) {
-    leadNode = <span style={{ color: GREEN, fontWeight: 800 }}>W</span>
+    leadNode = <span style={{ color: GREEN, fontWeight: 800 }}>{t('winShort')}</span>
   } else if (playerLost) {
-    leadNode = <span style={{ color: LIVE_RED, fontWeight: 800 }}>L</span>
+    leadNode = <span style={{ color: LIVE_RED, fontWeight: 800 }}>{t('lossShort')}</span>
   } else {
     leadNode = <span style={{ color: MUTED, fontWeight: 800 }}>—</span>
   }
@@ -1591,7 +1593,7 @@ function MatchRow({
     : formatDate(matchDate(match), format)
 
   // Retired / walkover trailing tag
-  const retTag = isRetired ? 'RET' : isWalkover ? 'W/O' : null
+  const retTag = isRetired ? t('retiredShort') : isWalkover ? t('walkoverShort') : null
 
   // Player's pair rendered first (top row), opponent pair below
   const playerIsP1 = roles.isP1
@@ -1626,7 +1628,7 @@ function MatchRow({
         {leadNode}
         {match.round && <>
           <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-          <span>{match.round}</span>
+          <span>{playerRoundLabel(match.round, t)}</span>
         </>}
         {dateString && <>
           <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
@@ -1686,6 +1688,7 @@ function MatchListItem({
   onClick: () => void
   format: ReturnType<typeof useFormatter>
 }) {
+  const t = useTranslations('player')
   const roles = resolveMatchRoles(match, playerId)
   const score = scoreString(match.sets)
   const tournamentName = match.tournament?.name ? titleCase(match.tournament.name) : ''
@@ -1709,21 +1712,21 @@ function MatchListItem({
         clipPath: CHUNKY.badge,
       }}>
         {match.status === 'live'
-          ? <span style={{ fontSize: 7, fontWeight: 800, color: LIVE_RED }}>LIVE</span>
+          ? <span style={{ fontSize: 7, fontWeight: 800, color: LIVE_RED }}>{t('liveShort')}</span>
           : (roles.won || roles.lost)
-          ? <span style={{ fontSize: 11, fontWeight: 800, color: roles.won ? GREEN : LIVE_RED }}>{roles.won ? 'W' : 'L'}</span>
+          ? <span style={{ fontSize: 11, fontWeight: 800, color: roles.won ? GREEN : LIVE_RED }}>{roles.won ? t('winShort') : t('lossShort')}</span>
           : <span style={{ fontSize: 9, color: MUTED }}>—</span>}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {roles.partner ? `w/ ${toShortName(roles.partner.display_name?.trim() || roles.partner.name)}` : 'Solo'}
+          {roles.partner ? t('withPartnerShort', { name: toShortName(roles.partner.display_name?.trim() || roles.partner.name) }) : t('noPartner')}
           <span style={{ color: MUTED, fontWeight: 400 }}> vs </span>
           {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}
         </div>
         <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', gap: 5 }}>
           <span>{tournamentName}</span>
-          {match.round && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{match.round}</span></>}
+          {match.round && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{playerRoundLabel(match.round, t)}</span></>}
           {date && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{date}</span></>}
         </div>
       </div>
@@ -1748,10 +1751,11 @@ function TournamentHeader({
   matches: MatchRow[]
   format: ReturnType<typeof useFormatter>
 }) {
+  const t = useTranslations('player')
   const hasLive = matches.some(m => m.status === 'live')
   const accent = hasLive ? LIVE_RED : GREEN
-  const stage = mostAdvancedRound(matches)
-  const level = tournament.level ? levelLabel(tournament.level) : ''
+  const stage = playerBestRound(matches)
+  const level = tournament.level ? playerLevelLabel(tournament.level, t) : ''
 
   const dateRange = tournament.starts_at
     ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
@@ -1776,7 +1780,7 @@ function TournamentHeader({
               color: accent,
               background: hasLive ? 'rgba(255,70,85,0.12)' : 'rgba(126,211,33,0.12)',
               flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
-            }}>{stage}</span>
+            }}>{playerRoundLabel(stage, t)}</span>
           )}
         </div>
         {(level || dateRange) && (
@@ -1858,12 +1862,13 @@ function MatchesTab({
   router: ReturnType<typeof useRouter>
   format: ReturnType<typeof useFormatter>
 }) {
+  const t = useTranslations('player')
   const [visibleTournaments, setVisibleTournaments] = useState(5)
 
   if (matches.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
-        No matches found.
+        {t('noMatches')}
       </div>
     )
   }
@@ -1935,7 +1940,7 @@ function MatchesTab({
               cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            Load more tournaments
+            {t('loadMoreTournaments')}
           </button>
         </div>
       )}
@@ -1954,58 +1959,15 @@ function StatsTab({
   matches: MatchRow[]
   playerId: string
 }) {
-  // Group by round
-  const roundMap = new Map<string, { wins: number; losses: number }>()
-  for (const m of derived.finished) {
-    const round = m.round ?? 'Other'
-    const entry = roundMap.get(round) ?? { wins: 0, losses: 0 }
-    const won = m.winner_pair != null && (
-      m.pair1_player1?.id === player.id || m.pair1_player2?.id === player.id
-        ? m.winner_pair === 1
-        : m.winner_pair === 2
-    )
-    if (won) entry.wins++; else entry.losses++
-    roundMap.set(round, entry)
-  }
-  const rounds = [...roundMap.entries()].sort((a, b) => {
-    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
-    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
-    return wrB - wrA
-  })
-
-  // Group by tournament circuit (aggregate, no per-level breakdown)
-  const LEVEL_TO_CIRCUIT: Record<string, string> = {
-    p1: 'Premier Padel', p2: 'Premier Padel', major: 'Premier Padel', finals: 'Premier Padel',
-    wpt_master: 'World Padel Tour', wpt_1000: 'World Padel Tour', wpt_500: 'World Padel Tour', wpt_final: 'World Padel Tour',
-    fip_platinum: 'FIP', fip_gold: 'FIP', fip_other: 'FIP',
-    ppl: 'PPL', ppl_ii: 'PPL',
-  }
-  const circuitMap = new Map<string, { wins: number; losses: number }>()
-  // Uses allFinished on purpose: LEVEL_TO_CIRCUIT carries a dedicated 'PPL'
-  // bucket, so the league belongs here — shown, but in its own row, never
-  // folded into the circuit totals above.
-  for (const m of derived.allFinished) {
-    const circuit = LEVEL_TO_CIRCUIT[m.tournament?.level ?? ''] ?? 'Other'
-    const entry = circuitMap.get(circuit) ?? { wins: 0, losses: 0 }
-    const won = m.winner_pair != null && (
-      m.pair1_player1?.id === player.id || m.pair1_player2?.id === player.id
-        ? m.winner_pair === 1
-        : m.winner_pair === 2
-    )
-    if (won) entry.wins++; else entry.losses++
-    circuitMap.set(circuit, entry)
-  }
-  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'PPL', 'Other']
-  const circuits = [...circuitMap.entries()].sort((a, b) => {
-    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
-    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
-    return wrB - wrA
-  })
+  const t = useTranslations('player')
+  const rounds = playerStatsBreakdown(derived.finished, player.id, 'round')
+  // Include league results only in their own circuit bucket.
+  const circuits = playerStatsBreakdown(derived.allFinished, player.id, 'circuit')
 
   if (derived.finished.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
-        No finished matches to analyse yet.
+        {t('noFinishedMatches')}
       </div>
     )
   }
@@ -2013,23 +1975,23 @@ function StatsTab({
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Career totals */}
-      <Widget wide label="Career">
+      <Widget wide label={t('career')}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4 }}>
           {player.total_matches != null && (
             <div>
-              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>Matches</div>
+              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('matches')}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginTop: 2 }}>{player.total_matches}</div>
             </div>
           )}
           {player.titles != null && (
             <div>
-              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>Titles</div>
+              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('titles')}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: ORANGE, marginTop: 2 }}>{player.titles}</div>
             </div>
           )}
           {player.finals != null && (
             <div>
-              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>Finals</div>
+              <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('finals')}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginTop: 2 }}>{player.finals}</div>
             </div>
           )}
@@ -2038,14 +2000,14 @@ function StatsTab({
 
       {/* By Round */}
       {rounds.length > 0 && (
-        <Widget wide label="By Round">
+        <Widget wide label={t('byRound')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
             {rounds.map(([round, { wins, losses }], idx) => {
               const total = wins + losses
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
                 <div key={round} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                  <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600 }}>{round}</div>
+                  <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600 }}>{playerRoundLabel(round, t)}</div>
                   <WinRateBar wr={wr} color={GREEN} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                     <b style={{ color: GREEN }}>{wr}%</b> · {wins}-{losses}
@@ -2059,7 +2021,7 @@ function StatsTab({
 
       {/* By Circuit */}
       {circuits.length > 0 && (
-        <Widget wide label="By Circuit">
+        <Widget wide label={t('byCircuit')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
             {circuits.map(([circuit, { wins, losses }], idx) => {
               const total = wins + losses
@@ -2089,7 +2051,7 @@ function StatsTab({
                         style={{ height: 22, objectFit: 'contain', filter: 'invert(1) grayscale(1) brightness(2)' }}
                       />
                     ) : (
-                      <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
+                      <span style={{ color: '#fff', fontWeight: 600 }}>{circuit === 'Other' ? t('other') : circuit}</span>
                     )}
                   </div>
                   <WinRateBar wr={wr} color={ORANGE} rowIndex={idx} />

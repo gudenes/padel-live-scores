@@ -1,12 +1,12 @@
-import { roundCanonical } from './round-canonical'
+import { playerRoundCode, type PlayerRoundCode } from './player-display'
 import { resolveMatchRoles } from './match-roles'
 import type { MatchRowForTitles } from './derive-titles'
 
-export type BestRound = 'W' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'Q3' | 'Q2' | 'Q1'
+export type BestRound = PlayerRoundCode
 
 /** Higher number = deeper run. */
 const ROUND_DEPTH: Record<string, number> = {
-  W: 10, F: 9, SF: 8, QF: 7, R16: 6, R32: 5, R64: 4, Q3: 3, Q2: 2, Q1: 1,
+  W: 10, F: 9, SF: 8, QF: 7, R16: 6, R32: 5, R64: 4, R128: 3.5, Q3: 3, Q2: 2, Q1: 1,
 }
 
 export interface TournamentSummary {
@@ -48,7 +48,7 @@ export function deriveSeasonTournaments(
     if (matchYear(m) !== year) continue
     const tid = m.tournament.id
     const roles = resolveMatchRoles(m, playerId)
-    const canonicalRound = roundCanonical(m.round)
+    const canonicalRound = playerRoundCode(m.round)
     const round: BestRound | null = canonicalRound === 'F' && roles.won ? 'W' : canonicalRound
     const depth = round ? ROUND_DEPTH[round] : 0
     const iso = m.finished_at ?? m.played_at ?? m.scheduled_at

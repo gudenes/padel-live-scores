@@ -36,7 +36,20 @@ function categoryWord(category: string | null): string {
   return ''
 }
 
-export function buildPlayerSummary(input: PlayerSummaryInput): PlayerSummary {
+type SummaryTranslator = (key: string, values?: Record<string, string | number>) => string
+
+export function buildPlayerSummary(input: PlayerSummaryInput, t?: SummaryTranslator): PlayerSummary {
+  if (t) {
+    const facts: string[] = []
+    if (input.country) facts.push(`${t('country')}: ${input.country}`)
+    if (input.ranking != null) facts.push(`${t('currentRanking')}: #${input.ranking}${input.category === 'men' || input.category === 'women' ? ` (${t(input.category)})` : ''}`)
+    if (input.total_matches != null) facts.push(`${t('career')}: ${input.total_matches} ${t('matches')}${input.win_rate != null ? ` (${Math.round(input.win_rate)}% ${t('winRate')})` : ''}`)
+    return {
+      headline: t('profileHeadline', { name: input.name, tier: t(isAmateurTier(input.tier) ? 'amateur' : 'professional') }),
+      facts,
+      recentLines: input.recent.map(m => `${m.played_on} — ${m.tournament_name}${m.round ? ` ${m.round}` : ''}: ${m.result}${m.opponents.length ? ` vs ${m.opponents.join(', ')}` : ''}`),
+    }
+  }
   const fromCountry = input.country ? ` from ${input.country}` : ''
   const catWord = categoryWord(input.category)
   const rankingClause =
