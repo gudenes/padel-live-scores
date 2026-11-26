@@ -142,7 +142,7 @@ export function SeasonTab({
 }) {
   const t = useTranslations('player')
   const format = useFormatter()
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const months = Array.from({ length: 12 }, (_, month) => format.dateTime(new Date(Date.UTC(2026, month, 15)), { month: 'short', timeZone: 'UTC' }))
 
   // Dev-only: warn if stored titles count diverges from derived count
   useEffect(() => {

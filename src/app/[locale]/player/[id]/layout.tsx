@@ -6,6 +6,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
+import { playerRoundLabel } from '@/lib/player-display'
 import { rowExistsById } from '@/lib/entity-exists'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { buildPlayerSummary, RecentMatchInput } from '@/lib/seo/player-summary'
@@ -82,10 +83,10 @@ type DbRecent = {
   sets: Array<{ set_number: number; pair1_games: number | null; pair2_games: number | null }>
 }
 
-function countryName(code: string | null): string | null {
+function countryName(code: string | null, locale: string): string | null {
   if (!code) return null
   try {
-    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code.toUpperCase()) ?? code
   } catch {
     return code
   }
@@ -97,7 +98,8 @@ const lastName = (full: string): string => {
 }
 
 export default async function PlayerLayout({ params, children }: Props) {
-  const { id } = await params
+  const { id, locale } = await params
+  const t = await getTranslations({ locale, namespace: 'player' })
 
   let playerExists: boolean | null = null
   try {
@@ -173,12 +175,12 @@ export default async function PlayerLayout({ params, children }: Props) {
           .join(', ')
 
         const won = m.winner_pair != null ? m.winner_pair === playerSide : null
-        const verb = won === true ? 'won' : won === false ? 'lost' : 'played'
+        const verb = won === true ? t('won') : won === false ? t('lost') : t('played')
         const result = score ? `${verb} ${score}` : verb
 
         return {
           tournament_name: m.tournament?.name ?? '',
-          round: m.round,
+          round: m.round ? playerRoundLabel(m.round, t) : null,
           opponents: opponents.length > 0 ? [opponents.join(' / ')] : [],
           result,
           played_on: (m.finished_at ?? m.scheduled_at ?? '').slice(0, 10),
@@ -199,14 +201,14 @@ export default async function PlayerLayout({ params, children }: Props) {
     summary = player
       ? buildPlayerSummary({
           name: player.name,
-          country: countryName(player.country),
+          country: countryName(player.country, locale),
           category: player.category,
           tier: player.tier,
           ranking: player.ranking,
           total_matches: player.total_matches,
           win_rate: player.win_rate,
           recent,
-        })
+        }, t)
       : null
   } catch {
     // DB unavailable — render children without JSON-LD or summary
@@ -232,7 +234,7 @@ export default async function PlayerLayout({ params, children }: Props) {
           )}
           {summary.recentLines.length > 0 && (
             <>
-              <h2>Recent matches</h2>
+              <h2>{t('recentMatches')}</h2>
               <ul>
                 {summary.recentLines.map((line) => (
                   <li key={line}>{line}</li>
@@ -243,7 +245,7 @@ export default async function PlayerLayout({ params, children }: Props) {
         </header>
       ) : (
         playerName && (
-          <h1 className="sr-only">{playerName} — Padel Player Profile & Stats</h1>
+          <h1 className="sr-only">{playerName} — {t('playerProfile')}</h1>
         )
       )}
       {children}
