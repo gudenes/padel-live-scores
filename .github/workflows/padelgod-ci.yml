@@ -48,7 +48,12 @@ jobs:
           node-version: '20'
       - name: Install isolated database test dependencies
         run: |
-          npm install --prefix "$RUNNER_TEMP/stats-sql-tests" --no-audit --no-fund @electric-sql/pglite@0.5.8 vitest@4.1.2
+          mkdir -p "$RUNNER_TEMP/stats-sql-tests"
+          (
+            cd "$RUNNER_TEMP/stats-sql-tests"
+            npm init -y
+            npm install --no-audit --no-fund @electric-sql/pglite@0.5.8 vitest@4.1.2
+          )
           ln -s "$RUNNER_TEMP/stats-sql-tests/node_modules" node_modules
       - name: Test stats materialization and ingestion safeguards
         run: ./node_modules/.bin/vitest run src/lib/__tests__/stats-materialization.test.ts src/lib/__tests__/stats-ingestion-guardrails.test.ts
