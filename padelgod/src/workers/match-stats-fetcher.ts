@@ -623,15 +623,18 @@ export async function runMatchStatsFetcher(
   let fetchedLive = 0;
   let fetchedPostFinish = 0;
   let rowsUpserted = 0;
+  const outcomes: Array<{ match_id: string; outcome: 'success' | 'empty' | 'error' }> = [];
   for (const entry of batch) {
     try {
       const html = await fetchStatsHtml(deps, entry.candidate);
       if (!html) {
+        outcomes.push({ match_id: entry.candidate.matchId, outcome: 'empty' });
         skipped++;
         continue;
       }
       const parsed = parseCrionetMatchStats(html);
       if (parsed.perSet.length === 0) {
+        outcomes.push({ match_id: entry.candidate.matchId, outcome: 'empty' });
         skipped++;
         continue;
       }
@@ -641,6 +644,7 @@ export async function runMatchStatsFetcher(
         entry.candidate.parts.matchWidgetId,
         parsed
       );
+      outcomes.push({ match_id: entry.candidate.matchId, outcome: 'success' });
       rowsUpserted += count;
       fetched++;
       if (entry.reason === 'live') fetchedLive++;
@@ -648,9 +652,15 @@ export async function runMatchStatsFetcher(
     } catch (error) {
       // The claim's retry delay prevents one empty/broken source from starving
       // later matches. Continue the bounded batch after an individual failure.
+      outcomes.push({ match_id: entry.candidate.matchId, outcome: 'error' });
       console.error('[match-stats-fetcher] match failed', entry.candidate.matchId, error);
       skipped++;
     }
+  }
+
+  if (outcomes.length) {
+    const { error } = await deps.supabase.rpc('record_match_stats_outcomes', { p_outcomes: outcomes });
+    if (error) throw new Error(`match stats outcome recording failed: ${error.message}`);
   }
 
   return {

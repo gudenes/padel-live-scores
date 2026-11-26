@@ -1094,3 +1094,13 @@ describe('findLinkedMatchWithCompleteFks', () => {
     expect(result).toBeNull();
   });
 });
+
+
+it('reports a fresh match as created when the DB trigger already linked it', async () => {
+  const state=makeState();
+  state.onEidUpsert=(row)=>{state.eids.set(row.external_id,{entity_id:row.entity_id,external_id:row.external_id});};
+  const result=await findOrCreateMatch(fakeSupabase(state) as any,{...BASE_INPUT,pair1PlayerIds:['p-A','p-B'],pair2PlayerIds:['p-C','p-D']});
+  expect(result.created).toBe(true);
+  expect(state.matches.has(result.matchId)).toBe(true);
+  expect(state.eids.get(COMPOSITE)?.entity_id).toBe(result.matchId);
+});
