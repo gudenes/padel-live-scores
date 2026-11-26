@@ -5,11 +5,14 @@ const db=new PGlite()
 const id=(n:number)=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`
 beforeAll(async()=>{
  await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
+ ALTER DEFAULT PRIVILEGES GRANT EXECUTE ON FUNCTIONS TO anon,authenticated;
+ CREATE FUNCTION public.claim_match_stats_candidates(uuid[] DEFAULT NULL) RETURNS void LANGUAGE sql AS 'SELECT NULL::void';
  CREATE TABLE matches(id uuid PRIMARY KEY,widget_id_composite text UNIQUE,status text,finished_at timestamptz);
  CREATE TABLE entity_external_ids(entity_type text,entity_id uuid,source text,external_id text,first_seen_at timestamptz DEFAULT now(),last_seen_at timestamptz DEFAULT now(),UNIQUE(source,entity_type,external_id),UNIQUE(entity_type,entity_id,source));
  CREATE TABLE match_stats_fetch_state(match_id uuid PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,next_attempt_at timestamptz NOT NULL);`)
  await db.query(`INSERT INTO entity_external_ids(entity_type,entity_id,source,external_id) VALUES('match',$1,'crionet_widget','FIP-2026-4801:MD003')`,[id(999)])
  await db.exec(readFileSync('supabase/migrations/20261126150000_match_stats_ingestion_guardrails.sql','utf8'))
+ await db.exec(readFileSync('supabase/migrations/20261126151500_restrict_stats_maintenance_rpcs.sql','utf8'))
 },30000)
 afterAll(()=>db.close())
 it('links draw-only inserts atomically, skips synthetic IDs, and preserves existing identity',async()=>{
@@ -67,4 +70,15 @@ it('rejects new dangling links and preserves an existing link when an invalid up
  await expect(db.query(`INSERT INTO entity_external_ids(entity_type,entity_id,source,external_id) VALUES('match',$1,'other','missing')`,[id(999)])).rejects.toThrow(/missing match/);
  await expect(db.query(`UPDATE entity_external_ids SET entity_id=$1 WHERE entity_type='match' AND entity_id=$2`,[id(999),id(3)])).rejects.toThrow(/missing match/);
  expect((await db.query(`SELECT entity_id FROM entity_external_ids WHERE external_id='FIP-2026-4801:MD003'`)).rows).toEqual([{entity_id:id(3)}]);
+});
+
+it('restricts both maintenance RPCs even under Supabase default role grants',async()=>{
+ for(const role of ['anon','authenticated']){
+  await db.exec(`SET ROLE ${role}`);
+  await expect(db.query('SELECT claim_match_stats_candidates()')).rejects.toThrow(/permission denied/);
+  await expect(outcome(10,'empty')).rejects.toThrow(/permission denied/);
+  await db.exec('RESET ROLE');
+ }
+ const grants=(await db.query(`SELECT has_function_privilege('service_role','claim_match_stats_candidates(uuid[])','EXECUTE') claim,has_function_privilege('service_role','record_match_stats_outcomes(jsonb)','EXECUTE') record`)).rows[0];
+ expect(grants).toEqual({claim:true,record:true});
 });
