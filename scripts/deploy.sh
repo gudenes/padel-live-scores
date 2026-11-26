@@ -93,7 +93,7 @@ echo "==> plan"
 echo "    service : $SERVICE ($KEY)"
 echo "    commit  : $SHORT on $BRANCH (origin/main is $BEHIND ahead of this checkout)"
 echo "    prod now: ${CURRENT:0:9}${CURRENT:+ }$([[ $UNKNOWN -eq 1 ]] && echo '(unknown)')"
-echo "    upload  : $UPLOAD_DIR"
+echo "    upload  : $(cd "$UPLOAD_DIR" && pwd -P) (explicit archive root)"
 echo "    verify  : ${VERIFY_URL:-cron startup log}"
 if [[ $DRY -eq 1 ]]; then echo "==> dry run: nothing changed."; exit 0; fi
 
@@ -150,7 +150,7 @@ cron_deploy() {
   before="$(railway deployment list --service "$SERVICE" --json 2>/dev/null | python3 -c "import sys,json
 try: print(json.load(sys.stdin)[0]['id'])
 except Exception: print('')" 2>/dev/null || true)"
-  if ! out="$(cd "$UPLOAD_DIR" && railway up --service "$SERVICE" --detach --json)"; then
+  if ! out="$(cd "$UPLOAD_DIR" && railway up "$(pwd -P)" --path-as-root --service "$SERVICE" --detach --json)"; then
     restore; fail "railway up failed; the previous deployment is still serving."
   fi
   id="$(printf '%s' "$out" | python3 -c "import sys,json,re
@@ -182,12 +182,13 @@ except Exception: print('')" 2>/dev/null || true)"
   exit 1
 }
 
-# `railway up .` fails with "prefix not found" (CLI 5.63), so never pass a path:
-# run the CLI from inside the upload directory instead.
+# Railway can resolve the linked project directory instead of the current git
+# worktree. Pin the archive root explicitly so the source matches the SHA stamp.
+# Use an absolute path: a relative `.` can fail with "prefix not found".
 if [[ "$KEY" == "cron" ]]; then
   cron_deploy  # exits
 fi
-if ! (cd "$UPLOAD_DIR" && railway up --service "$SERVICE" --ci); then restore; fail "railway up failed; the previous deployment is still serving."; fi
+if ! (cd "$UPLOAD_DIR" && railway up "$(pwd -P)" --path-as-root --service "$SERVICE" --ci); then restore; fail "railway up failed; the previous deployment is still serving."; fi
 
 echo "==> verifying"
 for _ in $(seq 1 60); do
