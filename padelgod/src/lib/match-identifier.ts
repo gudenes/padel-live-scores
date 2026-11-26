@@ -668,13 +668,14 @@ export async function findOrCreateMatch(
   const newMatchId = await insertMatch(supabase, input, composite);
   const won = await linkWidgetId(supabase, newMatchId, composite);
   if (!won) {
-    // Concurrent create: another worker inserted a matches row AND linked it
+    // The database trigger may already have linked our own newly inserted row.
+    // Otherwise, a concurrent writer inserted a matches row AND linked it
     // before us. Our newMatchId is now an orphan thin row, but we return the
     // winner's id so the caller sees consistent state. (Orphan cleanup is out
     // of scope for this lib — a separate reconciler can sweep unlinked rows.)
     const winner = await lookupByWidgetId(supabase, composite);
     if (winner) {
-      return { matchId: winner, created: false, linkedExisting: false };
+      return { matchId: winner, created: winner === newMatchId, linkedExisting: false };
     }
     throw new Error(
       'match-identifier: widget-id upsert reported conflict but re-select returned null'

@@ -714,3 +714,12 @@ it('continues the batch after a provider request fails', async () => {
   expect(result.fetched).toBe(1);
   expect(supabase.upserted.every(row=>row.match_id==='good')).toBe(true);
 });
+
+it('records success, provider absence, and failures in one bounded outcome write', async () => {
+  const supabase = fakeSupabase({mappings:['good','empty','bad'].map((id,i)=>({entity_id:id,external_id:`FIP-2026-1701:MD00${i+1}`})),finishedMatchIds:['good','empty','bad']});
+  const httpClient={post:vi.fn().mockResolvedValueOnce({data:readFileSync(FIXTURE_PATH,'utf8')}).mockResolvedValueOnce({data:'<html>No stats</html>'}).mockRejectedValueOnce(new Error('offline'))};
+  const result=await runMatchStatsFetcher({supabase:supabase as any,httpClient:httpClient as any});
+  expect(result.fetched).toBe(1);
+  expect(supabase.rpc).toHaveBeenCalledWith('record_match_stats_outcomes',{p_outcomes:[{match_id:'good',outcome:'success'},{match_id:'empty',outcome:'empty'},{match_id:'bad',outcome:'error'}]});
+  expect(supabase.rpc.mock.calls.filter(([name])=>name==='record_match_stats_outcomes')).toHaveLength(1);
+});
