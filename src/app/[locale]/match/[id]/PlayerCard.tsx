@@ -1,6 +1,8 @@
 'use client'
 // Player card, avatar circle, and square hero photo — used in the Players tab and hero row.
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import type { SeasonStats } from '@/lib/player-season-stats'
 import { Link } from '@/i18n/navigation'
 import { toShortName } from '@/types/match'
 import { FlagImage } from '@/components/FlagImage'
@@ -8,7 +10,8 @@ import { useRouter } from '@/i18n/navigation'
 import { GREEN, MUTED, BORDER, PAIR2_COLOR, CHUNKY } from './lib/constants'
 
 // ── PlayerCard ────────────────────────────────────────────────────────────────
-export function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean; accent?: string }) {
+export function PlayerCard({ player, winner, accent, seasonStats }: { player: any; winner?: boolean; accent?: string; seasonStats?: SeasonStats }) {
+  const t = useTranslations('matchDetail')
   return (
     <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
     <div style={{ background: '#141414', overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card, cursor: 'pointer' }}>
@@ -31,13 +34,13 @@ export function PlayerCard({ player, winner, accent }: { player: any; winner?: b
         </div>
         <div style={{ width: '0.5px', height: 28, background: BORDER }} />
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{player.win_rate ? `${player.win_rate}%` : '\u2014'}</div>
-          <div style={{ fontSize: 10, color: '#666' }}>Win rate</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{seasonStats?.winRate != null ? `${seasonStats.winRate}%` : '\u2014'}</div>
+          <div style={{ fontSize: 10, color: '#666' }}>{t('seasonWinRate')}</div>
         </div>
         <div style={{ width: '0.5px', height: 28, background: BORDER }} />
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#aaa' }}>{player.total_matches ?? '\u2014'}</div>
-          <div style={{ fontSize: 10, color: '#666' }}>Matches</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#aaa' }}>{seasonStats?.matches ?? '\u2014'}</div>
+          <div style={{ fontSize: 10, color: '#666' }}>{t('seasonMatches')}</div>
         </div>
       </div>
     </div>

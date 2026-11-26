@@ -144,6 +144,11 @@
     }
   },
   "matchDetail": {
+    "seasonLabel": "Stagione {year}",
+    "seasonCoverage": "Risultati registrati · ritiri inclusi, forfait esclusi",
+    "seasonUnavailable": "Statistiche stagionali non disponibili",
+    "seasonWinRate": "Vittorie",
+    "seasonMatches": "Partite",
     "awaitingConfirmedOpponents": "In attesa della conferma degli avversari",
     "matchDetail": "Dettaglio Partita",
     "round": "Turno",
@@ -180,6 +185,7 @@
     "last5Matches": "Ultime 5 Partite",
     "noRecentData": "Nessun dato recente",
     "stats": {
+      "breakPointConversion": "Palle break convertite",
       "title": "Statistiche",
       "noData": "Nessun dato",
       "matchNotStarted": "La partita non è ancora iniziata",

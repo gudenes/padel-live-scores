@@ -144,6 +144,11 @@
     }
   },
   "matchDetail": {
+    "seasonLabel": "Saison {year}",
+    "seasonCoverage": "Résultats enregistrés · abandons inclus, forfaits exclus",
+    "seasonUnavailable": "Statistiques de saison indisponibles",
+    "seasonWinRate": "Victoires",
+    "seasonMatches": "Matchs",
     "awaitingConfirmedOpponents": "En attente de confirmation des adversaires",
     "matchDetail": "Détail du match",
     "round": "Tour",
@@ -180,6 +185,7 @@
     "last5Matches": "5 derniers matchs",
     "noRecentData": "Aucune donnée récente",
     "stats": {
+      "breakPointConversion": "Balles de break converties",
       "title": "Stats",
       "noData": "Aucune donnée",
       "matchNotStarted": "Le match n'a pas encore commencé",

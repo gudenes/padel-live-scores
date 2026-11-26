@@ -36,6 +36,8 @@ export interface MatchStatsBarProps {
   t2Value: number | null
   t2Total: number | null
   /** Row index used to stagger the scroll-triggered animation. Default: 0. */
+  /** Hide fractions when the source supplies a percentage without raw counts. */
+  showFraction?: boolean
   rowIndex?: number
 }
 
@@ -164,6 +166,7 @@ export function MatchStatsBar({
   t2Value,
   t2Total,
   rowIndex = 0,
+  showFraction = true,
 }: MatchStatsBarProps) {
   const rowRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(rowRef)
@@ -211,7 +214,7 @@ export function MatchStatsBar({
       </div>
 
       {/* Row 2: fractions (only for percentage kind) */}
-      {kind === 'percentage' && (t1Frac || t2Frac) && (
+      {showFraction && kind === 'percentage' && (t1Frac || t2Frac) && (
         <div
           style={{
             display: 'grid',

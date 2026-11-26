@@ -144,6 +144,11 @@
     }
   },
   "matchDetail": {
+    "seasonLabel": "Temporada {year}",
+    "seasonCoverage": "Resultados registados · inclui desistências, exclui W.O.",
+    "seasonUnavailable": "Estatísticas da temporada indisponíveis",
+    "seasonWinRate": "Vitórias",
+    "seasonMatches": "Jogos",
     "awaitingConfirmedOpponents": "Aguardando a confirmação dos adversários",
     "matchDetail": "Detalhe da Partida",
     "round": "Rodada",
@@ -180,6 +185,7 @@
     "last5Matches": "Últimas 5 Partidas",
     "noRecentData": "Sem dados recentes",
     "stats": {
+      "breakPointConversion": "Pontos de break convertidos",
       "title": "Estatísticas",
       "noData": "Sem dados",
       "matchNotStarted": "O jogo ainda não começou",

@@ -12,6 +12,8 @@
 import type { PremierMatchDetail, PremierStatRow } from './premier-api'
 
 export interface MatchStatsRow {
+  team1_break_points_converted_pct?: number | null
+  team2_break_points_converted_pct?: number | null
   set_number: number
 
   // Service stats

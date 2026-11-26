@@ -113,6 +113,7 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
       const rows = opts.tournaments ?? DEFAULT_TOURNAMENTS;
       return {
         select: () => ({
+          in: (_col: string, ids: string[]) => Promise.resolve({data: rows.filter(r => ids.includes(r.id)), error: null}),
           then: (
             resolve: (v: { data: Array<{ id: string; level: string | null }>; error: null }) => void,
           ) => {
@@ -140,6 +141,7 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
                 )
                 .map((row) => ({
                   match_id: row.match_id,
+                  set_number: 0,
                   computed_at:
                     opts.statsComputedAt?.[row.match_id] ??
                     DEFAULT_STATS_COMPUTED_AT,
@@ -202,7 +204,7 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
     inserted,
     from: publicFrom,
     schema: (_s: string) => ({ from: padelgodFrom }),
-    rpc: vi.fn(async () => ({ data: [], error: null })),
+    rpc: vi.fn(async (name: string) => ({ data: name === 'claim_match_stats_candidates' ? opts.mappings : [], error: null })),
   };
 }
 
@@ -256,6 +258,9 @@ describe('runMatchStatsFetcher', () => {
     expect(setNumbers).toEqual([0, 1, 2]);
     // Shape checks on the aggregate row
     const agg = supabase.upserted.find((r: any) => r.set_number === 0);
+    expect(supabase.rpc).toHaveBeenCalledWith('claim_match_stats_candidates', {p_tournament_ids: null});
+    expect(agg.team1_break_points_converted_pct).toBe(agg.raw_payload.team1.breakPointsConvertedPct);
+    expect(agg.team2_break_points_converted_pct).toBe(agg.raw_payload.team2.breakPointsConvertedPct);
     expect(agg.source).toBe('crionet_widget');
     expect(agg.source_match_id).toBe('MQ012');
     expect(agg.match_id).toBe(matchId);
@@ -693,4 +698,19 @@ describe('runMatchStatsFetcher', () => {
     expect(result.fetched).toBe(5);
     expect(httpClient.post).toHaveBeenCalledTimes(5);
   });
+});
+
+it('passes a tournament scope to the bounded DB claim', async () => {
+  const supabase = fakeSupabase({mappings:[],finishedMatchIds:[]});
+  await runMatchStatsFetcher({supabase:supabase as any,httpClient:{} as any,onlyTournamentIds:new Set(['mexico'])});
+  expect(supabase.rpc).toHaveBeenCalledWith('claim_match_stats_candidates',{p_tournament_ids:['mexico']});
+});
+
+it('continues the batch after a provider request fails', async () => {
+  const supabase = fakeSupabase({mappings:[{entity_id:'bad',external_id:'FIP-2026-1701:MD001'},{entity_id:'good',external_id:'FIP-2026-1701:MD002'}],finishedMatchIds:['bad','good']});
+  const httpClient = {post:vi.fn().mockRejectedValueOnce(new Error('provider offline')).mockResolvedValueOnce({data:readFileSync(FIXTURE_PATH,'utf8')})};
+  const result = await runMatchStatsFetcher({supabase:supabase as any,httpClient:httpClient as any});
+  expect(httpClient.post).toHaveBeenCalledTimes(2);
+  expect(result.fetched).toBe(1);
+  expect(supabase.upserted.every(row=>row.match_id==='good')).toBe(true);
 });
