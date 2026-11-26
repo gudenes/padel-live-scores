@@ -848,7 +848,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   {derived.nextScheduled.tournament?.level && (
                     <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                      {levelLabel(derived.nextScheduled.tournament.level)}
+                      {playerLevelLabel(derived.nextScheduled.tournament.level, tPlayer)}
                     </div>
                   )}
                 </div>
@@ -879,7 +879,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 {tourn.level && (
                   <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                    {levelLabel(tourn.level)}
+                    {playerLevelLabel(tourn.level, tPlayer)}
                   </div>
                 )}
               </div>
@@ -915,7 +915,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 {enrollment.level && (
                   <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
-                    {levelLabel(enrollment.level)}
+                    {playerLevelLabel(enrollment.level, tPlayer)}
                   </div>
                 )}
               </div>

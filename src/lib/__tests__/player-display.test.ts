@@ -41,7 +41,7 @@ describe('player display normalization', () => {
 for (const [locale, messages] of Object.entries({ en, es, fr, it: itMessages, pt })) {
   describe(`player labels: ${locale}`, () => {
     const errors: Error[] = []
-    const t = createTranslator({ locale, messages, namespace: 'player', onError: e => { errors.push(e) } })
+    const t = createTranslator({ locale, messages, namespace: 'player', onError: e => { errors.push(e) } }) as (key: string, values?: Record<string, string | number>) => string
     it('formats new labels and dynamic rounds without translation errors', () => {
       const keys = ['goBack', 'viewSeasonTitles', 'men', 'women', 'world', 'ranked', 'oldest', 'latest', 'fipRanking', 'pointsShort', 'profileInfo', 'noPartners', 'winShort', 'lossShort', 'live', 'liveShort', 'retiredShort', 'walkoverShort', 'noPartner', 'noMatches', 'loadMoreTournaments', 'noFinishedMatches', 'career', 'byRound', 'byCircuit', 'finals', 'other', 'ytdEarnings', 'earningsTabNewPill']
       for (const key of keys) expect(t(key)).not.toContain('player.')
