@@ -279,10 +279,10 @@ export function SeasonTab({
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 9, color: MUTED, marginTop: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: GREEN }} /> Wins
+            <div style={{ width: 8, height: 8, background: GREEN }} /> {t('seasonWinsLabel')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: LIVE_RED }} /> Losses
+            <div style={{ width: 8, height: 8, background: LIVE_RED }} /> {t('seasonLossesLabel')}
           </div>
         </div>
       </Widget>

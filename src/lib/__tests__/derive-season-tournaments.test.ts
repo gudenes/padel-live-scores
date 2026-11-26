@@ -83,3 +83,30 @@ describe('deriveSeasonTournaments', () => {
     expect(result).toHaveLength(1)
   })
 })
+
+
+describe('provider round names in season summaries', () => {
+  it.each([
+    ['Round of 16', 'R16'], ['Round of 32', 'R32'],
+    ['Quarterfinals', 'QF'], ['Semifinals', 'SF'], ['Q1', 'Q1'],
+  ])('normalizes %s to %s', (round, expected) => {
+    expect(deriveSeasonTournaments([match({ round })], 'p1', 2026)[0].bestRound).toBe(expected)
+  })
+
+  it('selects the deepest round across mixed formats regardless of input order', () => {
+    const matches = [match({ round: 'R16' }), match({ round: 'Quarterfinals' }), match({ round: 'Semifinals', winner_pair: 2 })]
+    for (const input of [matches, [...matches].reverse()]) {
+      expect(deriveSeasonTournaments(input, 'p1', 2026)[0]).toMatchObject({ bestRound: 'SF', wins: 2, losses: 1, isTitle: false })
+    }
+  })
+
+  it.each(['Final', 'Finals', 'F'])('recognizes a won and lost %s', (round) => {
+    expect(deriveSeasonTournaments([match({ round })], 'p1', 2026)[0]).toMatchObject({ bestRound: 'W', isTitle: true })
+    expect(deriveSeasonTournaments([match({ round, winner_pair: 2 })], 'p1', 2026)[0]).toMatchObject({ bestRound: 'F', isTitle: false })
+  })
+
+  it.each([null, '', 'Group A'])('does not invent a round for %s', (round) => {
+    expect(deriveSeasonTournaments([match({ round })], 'p1', 2026)[0].bestRound).toBeNull()
+    expect(deriveSeasonTournaments([match({ round }), match({ round: 'Q1' })], 'p1', 2026)[0].bestRound).toBe('Q1')
+  })
+})

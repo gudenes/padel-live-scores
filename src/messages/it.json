@@ -751,6 +751,8 @@
     "seasonTournamentsCount": "{count, plural, one {# torneo} other {# tornei}}",
     "playerNotInTop1000": "{name} non è nella top 1000",
     "viewInRankings": "Vedi {name} nelle classifiche",
+    "seasonWinsLabel": "Vittorie",
+    "seasonLossesLabel": "Sconfitte",
     "roundLabel": {
       "W": "Vincitore",
       "F": "Finale",

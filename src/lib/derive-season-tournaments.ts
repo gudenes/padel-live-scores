@@ -1,3 +1,4 @@
+import { roundCanonical } from './round-canonical'
 import { resolveMatchRoles } from './match-roles'
 import type { MatchRowForTitles } from './derive-titles'
 
@@ -17,7 +18,7 @@ export interface TournamentSummary {
     starts_at: string | null
     ends_at: string | null
   }
-  bestRound: BestRound
+  bestRound: BestRound | null
   matchCount: number
   wins: number
   losses: number
@@ -47,9 +48,9 @@ export function deriveSeasonTournaments(
     if (matchYear(m) !== year) continue
     const tid = m.tournament.id
     const roles = resolveMatchRoles(m, playerId)
-    const isFinalWon = m.round === 'F' && roles.won
-    const round = (isFinalWon ? 'W' : (m.round ?? 'R64')) as BestRound
-    const depth = ROUND_DEPTH[round] ?? 0
+    const canonicalRound = roundCanonical(m.round)
+    const round: BestRound | null = canonicalRound === 'F' && roles.won ? 'W' : canonicalRound
+    const depth = round ? ROUND_DEPTH[round] : 0
     const iso = m.finished_at ?? m.played_at ?? m.scheduled_at
 
     const existing = byT.get(tid)
