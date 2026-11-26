@@ -55,7 +55,7 @@
 //   pairs — same convention `/api/match-stats` uses for padelapi-sourced
 //   rows, so the UI's `kind="percentage"` bars render identically regardless
 //   of source.
-// - aces / double_faults / break_points_converted / total_points have no
+// - aces / double_faults / total_points have no
 //   schema columns and are dropped (the UI doesn't display them).
 // - source='crionet_widget' marks these rows. Legacy non-crionet rows
 //   (premierpadel, padelapi) are overwritten on the next run so they pick up
@@ -79,6 +79,7 @@ export interface MatchStatsFetcherDeps {
 }
 
 export interface MatchStatsFetcherResult {
+  /** Eligible mappings claimed this run (at most 20), not all historical mappings. */
   candidatesSeen: number;
   fetched: number;
   /** Subset of `fetched` that were status='live' or 'on_court' at fetch
@@ -207,30 +208,29 @@ interface CandidateMapping {
   parts: CompositeParts;
 }
 
-async function fetchCrionetMatchMappings(
-  supabase: SupabaseClient
+async function claimCrionetMatchMappings(
+  supabase: SupabaseClient,
+  tournamentIds?: Set<string>,
 ): Promise<Array<{ entity_id: string; external_id: string }>> {
-  const { data, error } = await supabase
-    .from('entity_external_ids')
-    .select('entity_id, external_id')
-    .eq('entity_type', 'match')
-    .eq('source', 'crionet_widget');
-  if (error) throw new Error(`entity_external_ids query failed: ${error.message}`);
+  const { data, error } = await supabase.rpc('claim_match_stats_candidates', {
+    p_tournament_ids: tournamentIds?.size ? [...tournamentIds] : null,
+  });
+  if (error) throw new Error(`match stats candidate claim failed: ${error.message}`);
   return (data ?? []) as Array<{ entity_id: string; external_id: string }>;
 }
 
 /**
  * Returns the set of tournament IDs whose `level` is Premier-tier. The
- * tournaments table is small (~hundreds of rows in total), so we fetch
- * the whole list and filter client-side — much simpler than constructing
- * a PostgREST `or=` filter that enumerates every Premier label.
+ * query is restricted to tournaments represented by this bounded batch.
  */
 async function fetchPremierTournamentIds(
   supabase: SupabaseClient,
+  tournamentIds: string[],
 ): Promise<Set<string>> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('id, level');
+    .select('id, level')
+    .in('id', tournamentIds);
   if (error) {
     throw new Error(`tournaments query failed: ${error.message}`);
   }
@@ -333,15 +333,14 @@ async function fetchCrionetStatsComputedAt(
     const chunk = matchIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
     const { data, error } = await supabase
       .from('match_stats')
-      .select('match_id, computed_at')
+      .select('match_id, computed_at, set_number')
       .in('match_id', chunk)
       .eq('source', 'crionet_widget');
     if (error) throw new Error(`match_stats query failed: ${error.message}`);
-    const rows = (data ?? []) as Array<{ match_id: string; computed_at: string | null }>;
+    const rows = (data ?? []) as Array<{ match_id: string; computed_at: string | null; set_number: number }>;
     for (const r of rows) {
-      // Multiple rows per match (aggregate + per-set) — keep the latest
-      // computed_at across them. They're written in a single upsert so
-      // they should all share the same value in practice.
+      if (r.set_number !== 0) continue;
+      // The aggregate is the completion marker used by the DB candidate query.
       const existing = out.get(r.match_id);
       if (existing === undefined) {
         out.set(r.match_id, r.computed_at);
@@ -413,11 +412,13 @@ async function upsertParsedStats(
       team1_second_return_won: t1SecondReturn.won,
       team1_second_return_played: t1SecondReturn.played,
       team1_return_games: t1.returnGames,
+      team1_break_points_converted_pct: t1.breakPointsConvertedPct,
       team2_first_return_won: t2FirstReturn.won,
       team2_first_return_played: t2FirstReturn.played,
       team2_second_return_won: t2SecondReturn.won,
       team2_second_return_played: t2SecondReturn.played,
       team2_return_games: t2.returnGames,
+      team2_break_points_converted_pct: t2.breakPointsConvertedPct,
 
       // Totals: total/serve/return points win % (as value/100), longest streak (count)
       team1_total_points_won: t1TotalPoints.won,
@@ -499,7 +500,7 @@ interface NeedsFetchEntry {
 export async function runMatchStatsFetcher(
   deps: MatchStatsFetcherDeps
 ): Promise<MatchStatsFetcherResult> {
-  const mappings = await fetchCrionetMatchMappings(deps.supabase);
+  const mappings = await claimCrionetMatchMappings(deps.supabase, deps.onlyTournamentIds);
   const candidatesSeen = mappings.length;
   if (candidatesSeen === 0) {
     return {
@@ -539,34 +540,20 @@ export async function runMatchStatsFetcher(
     };
   }
 
-  let parseableForRun = parseable;
-  if (deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0) {
-    // Query matches by tournament_id (bounded by tournament size — typically
-    // <200 rows) rather than .in('id', [parseable...]) which would exceed
-    // PostgREST's URL-length limit on workers with thousands of crionet_widget
-    // mappings across all tournaments.
-    const { data: matchRows, error: matchErr } = await deps.supabase
-      .from('matches')
-      .select('id')
-      .in('tournament_id', Array.from(deps.onlyTournamentIds));
-    if (matchErr) throw new Error(`matches tournament-filter query failed: ${matchErr.message}`);
-    const inTournament = new Set((matchRows ?? []).map((r) => r.id as string));
-    const before = parseable.length;
-    parseableForRun = parseable.filter((c) => inTournament.has(c.matchId));
-    skipped += before - parseableForRun.length;
-  }
+  const parseableForRun = parseable;
 
   // Premier-tier gate (see file header). Drop mappings whose tournament
   // isn't Premier-tier BEFORE the has-stats filter — these matches will
   // never produce a useful stats payload from Crionet, and letting them
   // through would just consume slots in the batch budget.
-  const premierTournamentIds = await fetchPremierTournamentIds(deps.supabase);
   const parseableIds = parseableForRun.map((c) => c.matchId);
   const finishedInfo = await fetchFinishedMatchInfo(deps.supabase, parseableIds);
   const liveTournamentMap = await fetchLiveMatchTournamentMap(
     deps.supabase,
     parseableIds,
   );
+  const tournamentIds = [...new Set([...finishedInfo.values()].map(m => m.tournamentId).concat([...liveTournamentMap.values()]).filter((id): id is string => !!id))];
+  const premierTournamentIds = tournamentIds.length ? await fetchPremierTournamentIds(deps.supabase, tournamentIds) : new Set<string>();
   const statsComputedAt = await fetchCrionetStatsComputedAt(
     deps.supabase,
     parseableIds,
@@ -637,26 +624,33 @@ export async function runMatchStatsFetcher(
   let fetchedPostFinish = 0;
   let rowsUpserted = 0;
   for (const entry of batch) {
-    const html = await fetchStatsHtml(deps, entry.candidate);
-    if (!html) {
+    try {
+      const html = await fetchStatsHtml(deps, entry.candidate);
+      if (!html) {
+        skipped++;
+        continue;
+      }
+      const parsed = parseCrionetMatchStats(html);
+      if (parsed.perSet.length === 0) {
+        skipped++;
+        continue;
+      }
+      const count = await upsertParsedStats(
+        deps.supabase,
+        entry.candidate.matchId,
+        entry.candidate.parts.matchWidgetId,
+        parsed
+      );
+      rowsUpserted += count;
+      fetched++;
+      if (entry.reason === 'live') fetchedLive++;
+      else if (entry.reason === 'post_finish') fetchedPostFinish++;
+    } catch (error) {
+      // The claim's retry delay prevents one empty/broken source from starving
+      // later matches. Continue the bounded batch after an individual failure.
+      console.error('[match-stats-fetcher] match failed', entry.candidate.matchId, error);
       skipped++;
-      continue;
     }
-    const parsed = parseCrionetMatchStats(html);
-    if (parsed.perSet.length === 0) {
-      skipped++;
-      continue;
-    }
-    const count = await upsertParsedStats(
-      deps.supabase,
-      entry.candidate.matchId,
-      entry.candidate.parts.matchWidgetId,
-      parsed
-    );
-    rowsUpserted += count;
-    fetched++;
-    if (entry.reason === 'live') fetchedLive++;
-    else if (entry.reason === 'post_finish') fetchedPostFinish++;
   }
 
   return {

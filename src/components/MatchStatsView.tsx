@@ -210,6 +210,18 @@ export function MatchStatsView({
           t2Total={null}
           rowIndex={6}
         />
+        {(activeRow.team1_break_points_converted_pct != null || activeRow.team2_break_points_converted_pct != null) && (
+          <MatchStatsBar
+            label={t('breakPointConversion')}
+            showFraction={false}
+            kind="percentage"
+            t1Value={activeRow.team1_break_points_converted_pct ?? null}
+            t1Total={activeRow.team1_break_points_converted_pct != null ? 100 : null}
+            t2Value={activeRow.team2_break_points_converted_pct ?? null}
+            t2Total={activeRow.team2_break_points_converted_pct != null ? 100 : null}
+            rowIndex={7}
+          />
+        )}
         {breaksAgg && (
           <MatchStatsBar
             label={t('breaksWon')}

@@ -57,14 +57,18 @@ export async function GET(request: Request) {
     )
   }
 
-  const { data: rows } = await supabase
+  const { data: rows, error: statsError } = await supabase
     .from('match_stats')
-    .select('*')
+    .select(
+      'match_id,source,source_match_id,computed_at,team1_break_points_converted_pct,team2_break_points_converted_pct,set_number,team1_first_serve_won,team1_first_serve_played,team1_second_serve_won,team1_second_serve_played,team1_service_games,team2_first_serve_won,team2_first_serve_played,team2_second_serve_won,team2_second_serve_played,team2_service_games,team1_first_return_won,team1_first_return_played,team1_second_return_won,team1_second_return_played,team1_return_games,team2_first_return_won,team2_first_return_played,team2_second_return_won,team2_second_return_played,team2_return_games,team1_total_points_won,team1_total_points_played,team1_serve_points_won,team1_serve_points_played,team1_return_points_won,team1_return_points_played,team1_longest_streak,team2_total_points_won,team2_total_points_played,team2_serve_points_won,team2_serve_points_played,team2_return_points_won,team2_return_points_played,team2_longest_streak',
+    )
     .eq('match_id', matchId)
     .order('set_number', { ascending: true })
 
+  if (statsError) return Response.json({ error: 'Failed to load match stats' }, { status: 500 })
+
   if (rows && rows.length > 0) {
-    const stats = rows.map(({ raw_payload: _raw, ...rest }) => rest)
+    const stats = rows
     return Response.json(
       { stats, status: 'ok' as StatsStatus, webtugaSourced },
       { headers: { 'cache-control': 'public, max-age=60, stale-while-revalidate=600' } },

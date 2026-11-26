@@ -43,6 +43,7 @@ import { MatchRatingCard } from './MatchRatingCard'
 import { LiveFeedTab } from './LiveFeedTab'
 import { H2HTab } from './H2HTab'
 import { PlayerCard, PlayerSquare } from './PlayerCard'
+import { usePlayerSeasonStats } from '@/hooks/usePlayerSeasonStats'
 import {
   GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER,
   PAIR1_COLOR, PAIR2_COLOR, CHUNKY,
@@ -71,6 +72,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const cupData = useWorldCupMatchData(match)
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState<SubTab>('live')
+  const season = usePlayerSeasonStats(
+    [match?.pair1_player1?.id, match?.pair1_player2?.id, match?.pair2_player1?.id, match?.pair2_player2?.id].filter(Boolean) as string[],
+    subTab === 'players',
+    `${match?.id}:${match?.status}:${match?.winner_pair}`,
+  )
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
   const [pair1Recent, setPair1Recent] = useState<any[]>([])
   const [pair2Recent, setPair2Recent] = useState<any[]>([])
@@ -1182,15 +1188,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 )}
                 {t.key === 'players' && (
                   <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {match.pair1_player1 && <PlayerCard player={match.pair1_player1} winner={p1Won} accent={PAIR1_COLOR} />}
-                    {match.pair1_player2 && <PlayerCard player={match.pair1_player2} winner={p1Won} accent={PAIR1_COLOR} />}
+                    <div style={{ fontSize: 11, color: MUTED }}><strong>{tMatch('seasonLabel', { year: season.year })}</strong><div>{tMatch(season.error ? 'seasonUnavailable' : 'seasonCoverage')}</div></div>
+                    {match.pair1_player1 && <PlayerCard player={match.pair1_player1} seasonStats={season.stats[match.pair1_player1.id]} winner={p1Won} accent={PAIR1_COLOR} />}
+                    {match.pair1_player2 && <PlayerCard player={match.pair1_player2} seasonStats={season.stats[match.pair1_player2.id]} winner={p1Won} accent={PAIR1_COLOR} />}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                       <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
                       <span style={{ fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: '2px' }}>VS</span>
                       <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
                     </div>
-                    {match.pair2_player1 && <PlayerCard player={match.pair2_player1} winner={p2Won} accent={PAIR2_COLOR} />}
-                    {match.pair2_player2 && <PlayerCard player={match.pair2_player2} winner={p2Won} accent={PAIR2_COLOR} />}
+                    {match.pair2_player1 && <PlayerCard player={match.pair2_player1} seasonStats={season.stats[match.pair2_player1.id]} winner={p2Won} accent={PAIR2_COLOR} />}
+                    {match.pair2_player2 && <PlayerCard player={match.pair2_player2} seasonStats={season.stats[match.pair2_player2.id]} winner={p2Won} accent={PAIR2_COLOR} />}
                   </div>
                 )}
                 {t.key === 'h2h' && (

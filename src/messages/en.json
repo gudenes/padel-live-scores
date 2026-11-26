@@ -150,6 +150,11 @@
     }
   },
   "matchDetail": {
+    "seasonLabel": "{year} season",
+    "seasonCoverage": "Recorded results · includes retirements, excludes walkovers",
+    "seasonUnavailable": "Season stats unavailable",
+    "seasonWinRate": "Win rate",
+    "seasonMatches": "Matches",
     "awaitingConfirmedOpponents": "Awaiting confirmed opponents",
     "matchDetail": "Match Detail",
     "round": "Round",
@@ -186,6 +191,7 @@
     "last5Matches": "Last 5 Matches",
     "noRecentData": "No recent data",
     "stats": {
+      "breakPointConversion": "Break-point conversion",
       "title": "Stats",
       "_title_context": "Tab/section title — short for \"Statistics\".",
       "noData": "No data",
