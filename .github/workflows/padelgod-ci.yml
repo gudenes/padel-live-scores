@@ -4,11 +4,16 @@ on:
   pull_request:
     paths:
       - 'padelgod/**'
+      - 'supabase/migrations/**'
+      - 'src/lib/__tests__/stats-*.test.ts'
       - '.github/workflows/padelgod-ci.yml'
   push:
     branches: [main]
     paths:
+      - '.github/workflows/padelgod-ci.yml'
       - 'padelgod/**'
+      - 'supabase/migrations/**'
+      - 'src/lib/__tests__/stats-*.test.ts'
 
 jobs:
   test:
@@ -33,3 +38,17 @@ jobs:
 
       - name: Test
         run: npm test
+
+  stats-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated database test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/stats-sql-tests" --no-audit --no-fund @electric-sql/pglite@0.5.8 vitest@4.1.2
+          ln -s "$RUNNER_TEMP/stats-sql-tests/node_modules" node_modules
+      - name: Test stats materialization and ingestion safeguards
+        run: ./node_modules/.bin/vitest run src/lib/__tests__/stats-materialization.test.ts src/lib/__tests__/stats-ingestion-guardrails.test.ts
