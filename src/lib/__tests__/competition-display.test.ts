@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTranslator } from 'next-intl'
+import { createTranslator, type AbstractIntlMessages } from 'next-intl'
 import { competitionRoundLabel, competitionCourtLabel, localizedRegionName } from '../competition-display'
 import { buildMatchSummary } from '../seo/match-summary'
 import { buildTournamentResults } from '../seo/tournament-results'
@@ -14,13 +14,13 @@ const locales = { en, es, fr, it: it_, pt }
 for (const [locale, messages] of Object.entries(locales)) {
   describe(locale, () => {
     const errors: unknown[] = []
-    const t = createTranslator({ locale, messages, namespace: 'competitionLabels', onError: e => errors.push(e) })
+    const t = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'competitionLabels', onError: e => errors.push(e) })
     it('formats all labels, ICU plurals and known provider rounds without missing keys', () => {
       for (const [key, value] of Object.entries(messages.competitionLabels)) {
-        if (typeof value === 'string') expect(t(key as never, { count: 2, date: '2026-04-26' })).not.toContain('competitionLabels.')
+        if (typeof value === 'string') expect(t(key, { count: 2, date: '2026-04-26' })).not.toContain('competitionLabels.')
       }
       for (const aliases of [['F', 'Final', 'Finals'], ['SF', 'SemiFinals', 'semi-finals'], ['QF', 'Quarterfinals', 'quarter finals'], ['R16', 'Round of 16'], ['R128', 'Round of 128'], ['Q1'], ['Q2'], ['Q3']]) {
-        for (const alias of aliases) expect(competitionRoundLabel(alias, t)).toBe(t(`rounds.${aliases[0]}` as never))
+        for (const alias of aliases) expect(competitionRoundLabel(alias, t)).toBe(t(`rounds.${aliases[0]}`))
       }
       expect(competitionRoundLabel('provider_unknown_99', t)).toBe('—')
       expect(competitionRoundLabel(null, t)).toBe('')
@@ -42,7 +42,7 @@ for (const [locale, messages] of Object.entries(locales)) {
       expect(buildSeoSummary({ locale, broadcasters: [{ name: 'TV', country_iso2: 'es' }] }).named[0].countriesShown).toEqual([localizedRegionName('ES', locale)])
     })
     it('formats the legacy locked prediction without exposing keys', () => {
-      const p = createTranslator({ locale, messages, namespace: 'prediction', onError: e => errors.push(e) })
+      const p = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'prediction', onError: e => errors.push(e) })
       expect(p('yourPrediction')).not.toContain('prediction.')
       expect(p('locked')).not.toContain('prediction.')
       expect(p('win', { pair: 'A / B', margin: '2-0' })).toContain('A / B')
