@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useTranslations } from 'next-intl'
+import { localizedRegionName } from '@/lib/competition-display'
+import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelGroup as ChannelGroupData } from '@/lib/where-to-watch/group-builder'
 import { ChannelGroup } from './ChannelGroup'
 import { RegionPicker } from './RegionPicker'
@@ -15,15 +16,6 @@ const BORDER = 'rgba(255,255,255,0.06)'
 const CLIP_FRAME = 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)'
 
 // Same iso2 → name map used in ChannelGroup; duplicated here for footer text.
-const ISO2_TO_NAME: Record<string, string> = {
-  es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', gb: 'United Kingdom',
-  us: 'United States', ar: 'Argentina', mx: 'Mexico', br: 'Brazil',
-  pt: 'Portugal', nl: 'Netherlands', be: 'Belgium', se: 'Sweden', no: 'Norway',
-  dk: 'Denmark', fi: 'Finland', pl: 'Poland', ch: 'Switzerland', at: 'Austria',
-  ie: 'Ireland', gr: 'Greece', tr: 'Turkey', il: 'Israel', sa: 'Saudi Arabia',
-  ae: 'UAE', qa: 'Qatar', eg: 'Egypt', ma: 'Morocco', za: 'South Africa',
-  jp: 'Japan', kr: 'South Korea', cn: 'China', in: 'India', au: 'Australia',
-}
 
 export interface WhereToWatchPopupProps {
   open: boolean
@@ -40,6 +32,7 @@ export interface WhereToWatchPopupProps {
 export function WhereToWatchPopup({
   open, onClose, groups, country, isAutoDetected = false, onCountryChange,
 }: WhereToWatchPopupProps) {
+  const locale = useLocale()
   const t = useTranslations('whereToWatch')
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -67,7 +60,7 @@ export function WhereToWatchPopup({
 
   if (!open || typeof document === 'undefined') return null
 
-  const regionName = country ? (ISO2_TO_NAME[country.toLowerCase()] ?? country.toUpperCase()) : null
+  const regionName = country ? localizedRegionName(country, locale) : null
 
   return createPortal(
     <div

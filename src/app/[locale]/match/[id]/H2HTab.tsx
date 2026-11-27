@@ -1,4 +1,5 @@
 'use client'
+import { competitionRoundLabel } from '@/lib/competition-display'
 // H2H tab — head-to-head records between the two pairs.
 import { useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
@@ -18,6 +19,7 @@ export function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, 
   match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string; pair1Recent: any[]; pair2Recent: any[]
 }) {
   const t = useTranslations('matchDetail')
+  const labels = useTranslations('competitionLabels')
   const format = useFormatter()
   const [showAll, setShowAll] = useState(false)
   const p1Ids = [match.pair1_player1?.id, match.pair1_player2?.id].filter(Boolean) as string[]
@@ -113,7 +115,7 @@ export function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, 
 
         const date = formatDate(m.finished_at ?? m.started_at)
         const tournamentName = (m.tournament as any)?.name ?? '\u2014'
-        const round = m.round ?? ''
+        const round = competitionRoundLabel(m.round, labels)
 
         return (
           <Link

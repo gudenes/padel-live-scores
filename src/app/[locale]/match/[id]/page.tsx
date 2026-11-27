@@ -1,4 +1,5 @@
 'use client'
+import { competitionRoundLabel, competitionCourtLabel } from '@/lib/competition-display'
 // src/app/match/[id]/page.tsx
 // V3 Match Detail — orchestrator, hero, score grid. Chunky clip-path brand language, no border-radius except circles.
 
@@ -62,6 +63,7 @@ type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 export default function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const labels = useTranslations('competitionLabels')
   const tMatch = useTranslations('matchDetail')
   const tPred = useTranslations('prediction')
   const format = useFormatter()
@@ -505,8 +507,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   if (!match) return (
     <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Match not found</div>
-        <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
+        <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>{labels('notFound')}</div>
+        <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← {labels('back')}</button>
       </div>
     </main>
   )
@@ -651,7 +653,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', cursor: 'pointer',
           }}
-          aria-label="Back"
+          aria-label={labels('back')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
@@ -670,14 +672,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   fontWeight: 800,
                   color: '#F5A623',
                   letterSpacing: '0.5px',
-                }}>ON COURT</span>
+                }}>{labels('onCourt')}</span>
                 <PresenceOnlyHint matchId={match.id} variant="hero" />
               </span>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>{labels('live')}</span>
             </div>
           )
         )}
@@ -768,7 +770,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite', flexShrink: 0 }} />
               <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
-                Set {currentSet.set_number} · Game {currentGame?.game_number ?? 1}
+                {tMatch('set', { number: currentSet.set_number })} · {tMatch('game', { number: currentGame?.game_number ?? 1 })}
               </span>
             </div>
           )}
@@ -815,9 +817,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
         {/* Court + round + date */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: isScheduled ? 14 : 12 }}>
-          <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{match.court ?? ''}</span>
+          <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{competitionCourtLabel(match.court, labels)}</span>
           {match.court && match.round && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />}
-          <span style={{ fontSize: 10, color: '#777' }}>{match.round ?? ''}</span>
+          <span style={{ fontSize: 10, color: '#777' }}>{competitionRoundLabel(match.round, labels)}</span>
           <MatchDetailPointsBadge matchId={match.id} tournamentId={(match as any).tournament?.id} level={(match as any).tournament?.level} round={match.round} season={((match as any).tournament?.starts_at ?? match.scheduled_at ?? '').slice(0, 4)} />
           {isScheduled && smartForecast?.next_to_play && <NextToPlayBadge />}
           {duration && (
@@ -839,7 +841,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               <span key={set.set_number} style={{ fontSize: 9, width: 22, textAlign: 'center', color: set.is_current ? GREEN : '#555', fontWeight: 700 }}>S{set.set_number}</span>
             ))}
             <span style={{ width: 8 }} />
-            {!isFinished && <span style={{ fontSize: 9, width: 28, textAlign: 'center', color: MUTED, fontWeight: 700 }}>Pts</span>}
+            {!isFinished && <span style={{ fontSize: 9, width: 28, textAlign: 'center', color: MUTED, fontWeight: 700 }}>{tMatch('pts')}</span>}
           </div>
         )}
 
@@ -858,8 +860,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
               {pair1IsServing && (
                 <span
-                  aria-label="serving"
-                  title="Serving"
+                  aria-label={labels('serving')}
+                  title={labels('serving')}
                   style={{
                     width: 8,
                     height: 8,
@@ -916,7 +918,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {/* Star point indicator (no divider line) */}
         {isLive && currentGame && starPoint && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
-            <span style={{ color: ORANGE, fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '2px 6px' }}>Star point</span>
+            <span style={{ color: ORANGE, fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '2px 6px' }}>{labels('starPoint')}</span>
           </div>
         )}
         {/* VS divider (scheduled) or spacer (finished) */}
@@ -941,8 +943,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
               {pair2IsServing && (
                 <span
-                  aria-label="serving"
-                  title="Serving"
+                  aria-label={labels('serving')}
+                  title={labels('serving')}
                   style={{
                     width: 8,
                     height: 8,

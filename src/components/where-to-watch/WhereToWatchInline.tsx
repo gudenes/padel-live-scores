@@ -22,7 +22,8 @@
 // once a third consumer appears.
 
 import { useEffect, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { localizedRegionName } from '@/lib/competition-display'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   buildGroups,
   type LiveChannel,
@@ -34,15 +35,6 @@ import { RegionPicker } from './RegionPicker'
 
 const LOCALSTORAGE_KEY = 'preferred-country'
 
-const ISO2_TO_NAME: Record<string, string> = {
-  es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', gb: 'United Kingdom',
-  us: 'United States', ar: 'Argentina', mx: 'Mexico', br: 'Brazil',
-  pt: 'Portugal', nl: 'Netherlands', be: 'Belgium', se: 'Sweden', no: 'Norway',
-  dk: 'Denmark', fi: 'Finland', pl: 'Poland', ch: 'Switzerland', at: 'Austria',
-  ie: 'Ireland', gr: 'Greece', tr: 'Turkey', il: 'Israel', sa: 'Saudi Arabia',
-  ae: 'UAE', qa: 'Qatar', eg: 'Egypt', ma: 'Morocco', za: 'South Africa',
-  jp: 'Japan', kr: 'South Korea', cn: 'China', in: 'India', au: 'Australia',
-}
 
 const ORANGE = '#F5A623'
 const MUTED = '#9CA3AF'
@@ -68,6 +60,7 @@ export function WhereToWatchInline({
   channelRegionBlocks = [],
   fallback = null,
 }: WhereToWatchInlineProps) {
+  const locale = useLocale()
   const t = useTranslations('whereToWatch')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [preferredCountry, setPreferredCountry] = useState<string | null>(null)
@@ -101,7 +94,7 @@ export function WhereToWatchInline({
   if (!hasGroups && !showFallback) return null
 
   const regionName = effectiveCountry
-    ? (ISO2_TO_NAME[effectiveCountry.toLowerCase()] ?? effectiveCountry.toUpperCase())
+    ? localizedRegionName(effectiveCountry, locale)
     : null
 
   const isAutoDetected = !preferredCountry && !!geoCountry

@@ -2,6 +2,7 @@
 // Server-side layout wrapper to provide OG metadata for match pages.
 // The page itself is 'use client', so generateMetadata must live here.
 
+import { competitionRoundLabel } from '@/lib/competition-display'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -19,10 +20,10 @@ type Props = {
   children: React.ReactNode
 }
 
-function countryName(code: string | null): string | null {
+function countryName(code: string | null, locale = 'en'): string | null {
   if (!code) return null
   try {
-    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code.toUpperCase()) ?? code
   } catch {
     return code
   }
@@ -36,9 +37,10 @@ function lastName(fullName: string | null | undefined): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params
+  const labels = await getTranslations({ locale, namespace: 'competitionLabels' })
 
   let supabase
-  try { supabase = createServerClient() } catch { return { title: 'Match | Padel Nachos' } }
+  try { supabase = createServerClient() } catch { return { title: `${labels('match')} | Padel Nachos` } }
 
   const { data: match } = await supabase
     .from('matches')
@@ -59,7 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single()
 
   if (!match) {
-    return { title: 'Match | Padel Nachos' }
+    return { title: `${labels('match')} | Padel Nachos` }
   }
 
   type PlayerRef = { name: string } | null
@@ -87,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   type TournamentRef = { name: string } | null
   const tournamentName = (match.tournament as unknown as TournamentRef)?.name ?? ''
-  const round = match.round ?? ''
+  const round = competitionRoundLabel(match.round, labels)
   const roundSuffix = round ? ` ${round}` : ''
 
   // Sort sets by set_number for score string
@@ -144,6 +146,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MatchLayout({ params, children }: Props) {
   const { id, locale } = await params
+  const labels = await getTranslations({ locale, namespace: 'competitionLabels' })
 
   let matchExists: boolean | null = null
   try {
@@ -258,13 +261,13 @@ export default async function MatchLayout({ params, children }: Props) {
     // couldn't be resolved, and the sentence would render the degenerate
     // " vs " for its target. The structured JSON-LD still goes out.
     if (seoData?.channelMeta && h1Text) {
-      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters })
+      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters, locale })
       const parts: string[] = [`${seoData.channelMeta.name} YouTube`]
       for (const b of summaryData.named) {
         const countries = b.countriesShown.join(', ')
         parts.push(
           b.extraCountryCount > 0
-            ? `${b.name} (${countries}, +${b.extraCountryCount} more)`
+            ? `${b.name} (${countries}, ${labels('moreCountries', { count: b.extraCountryCount })})`
             : `${b.name} (${countries})`,
         )
       }
@@ -276,7 +279,7 @@ export default async function MatchLayout({ params, children }: Props) {
     if (match && tournament && (p1Names.length > 0 || p2Names.length > 0)) {
       summary = buildMatchSummary({
         status: match.status,
-        round: match.round ?? null,
+        round: competitionRoundLabel(match.round, labels) || null,
         winner_pair: match.winner_pair ?? null,
         scheduled_at: match.scheduled_at ?? null,
         finished_at: match.finished_at ?? null,
@@ -289,10 +292,10 @@ export default async function MatchLayout({ params, children }: Props) {
         }>) ?? []),
         tournament: {
           name: tournament.name,
-          country: countryName(tournament.country),
+          country: countryName(tournament.country, locale),
           level: tournament.level ?? null,
         },
-      })
+      }, labels)
     }
   } catch {
     // DB unavailable — render children without JSON-LD

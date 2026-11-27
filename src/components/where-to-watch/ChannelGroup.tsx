@@ -1,6 +1,7 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { localizedRegionName } from '@/lib/competition-display'
+import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelGroup as ChannelGroupData } from '@/lib/where-to-watch/group-builder'
 import { BroadcasterRow } from './BroadcasterRow'
 
@@ -13,15 +14,6 @@ const CLIP_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 // ISO2 → display name map. Lives here (mirrored from WhereToWatch.tsx)
 // because both this file and RegionPicker need it; keeping it inline
 // avoids a third file for ~36 entries.
-const ISO2_TO_NAME: Record<string, string> = {
-  es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', gb: 'United Kingdom',
-  us: 'United States', ar: 'Argentina', mx: 'Mexico', br: 'Brazil',
-  pt: 'Portugal', nl: 'Netherlands', be: 'Belgium', se: 'Sweden', no: 'Norway',
-  dk: 'Denmark', fi: 'Finland', pl: 'Poland', ch: 'Switzerland', at: 'Austria',
-  ie: 'Ireland', gr: 'Greece', tr: 'Turkey', il: 'Israel', sa: 'Saudi Arabia',
-  ae: 'UAE', qa: 'Qatar', eg: 'Egypt', ma: 'Morocco', za: 'South Africa',
-  jp: 'Japan', kr: 'South Korea', cn: 'China', in: 'India', au: 'Australia',
-}
 
 function youtubeWatchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
@@ -35,8 +27,9 @@ export interface ChannelGroupProps {
 }
 
 export function ChannelGroup({ group, groupIndex, country, onCloseRequested }: ChannelGroupProps) {
+  const locale = useLocale()
   const t = useTranslations('whereToWatch')
-  const regionName = country ? (ISO2_TO_NAME[country.toLowerCase()] ?? country.toUpperCase()) : null
+  const regionName = country ? localizedRegionName(country, locale) : null
 
   return (
     <div

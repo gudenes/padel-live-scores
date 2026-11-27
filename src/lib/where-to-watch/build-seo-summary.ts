@@ -1,3 +1,4 @@
+import { localizedRegionName } from '@/lib/competition-display'
 // Pure structural builder for the sr-only "where to watch" sentence.
 // Groups broadcasters by name, sorts by country coverage, applies caps,
 // and returns data the layout passes to next-intl's translator.
@@ -29,6 +30,7 @@ export interface SeoSummaryData {
 }
 
 export interface BuildSeoSummaryInput {
+  locale?: string
   broadcasters: BroadcasterForSummary[]
   maxNamedBroadcasters?: number
   maxCountriesPerBroadcaster?: number
@@ -49,7 +51,7 @@ export function buildSeoSummary(input: BuildSeoSummaryInput): SeoSummaryData {
   const byName = new Map<string, string[]>()
   for (const b of broadcasters) {
     const arr = byName.get(b.name) ?? []
-    const country = countryName(b.country_iso2)
+    const country = input.locale ? localizedRegionName(b.country_iso2, input.locale) : countryName(b.country_iso2)
     if (!arr.includes(country)) arr.push(country)
     byName.set(b.name, arr)
   }

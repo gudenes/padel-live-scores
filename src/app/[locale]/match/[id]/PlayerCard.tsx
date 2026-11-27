@@ -12,6 +12,7 @@ import { GREEN, MUTED, BORDER, PAIR2_COLOR, CHUNKY } from './lib/constants'
 // ── PlayerCard ────────────────────────────────────────────────────────────────
 export function PlayerCard({ player, winner, accent, seasonStats }: { player: any; winner?: boolean; accent?: string; seasonStats?: SeasonStats }) {
   const t = useTranslations('matchDetail')
+  const labels = useTranslations('competitionLabels')
   return (
     <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
     <div style={{ background: '#141414', overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card, cursor: 'pointer' }}>
@@ -22,7 +23,7 @@ export function PlayerCard({ player, winner, accent, seasonStats }: { player: an
             {player.country && <FlagImage country={player.country} size={14} />}
             {toShortName(player.display_name ?? player.name)}
           </div>
-          {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
+          {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? labels('drive') : player.side === 'backhand' ? labels('backhand') : labels('unknown')}</div>}
         </div>
         {/* Chevron indicator */}
         <span style={{ fontSize: 14, color: MUTED, flexShrink: 0 }}>›</span>
@@ -30,7 +31,7 @@ export function PlayerCard({ player, winner, accent, seasonStats }: { player: an
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{player.ranking ? `#${player.ranking}` : '\u2014'}</div>
-          <div style={{ fontSize: 10, color: '#666' }}>Rank</div>
+          <div style={{ fontSize: 10, color: '#666' }}>{labels('rank')}</div>
         </div>
         <div style={{ width: '0.5px', height: 28, background: BORDER }} />
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
