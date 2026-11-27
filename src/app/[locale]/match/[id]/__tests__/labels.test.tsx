@@ -34,6 +34,10 @@ for (const [locale, messages] of Object.entries({ en, es, fr, it: it_, pt })) {
       expect(html).toContain(messages.competitionLabels.backhand)
       expect(html).toContain(messages.competitionLabels.rank)
       expect(html).toContain('75%')
+      for (const side of ['drive', 'backhand', 'left', 'right'] as const) {
+        const card = render(<PlayerCard player={{ id: 'p', name: 'Test', side }} />)
+        expect(card).toContain(messages.competitionLabels[side])
+      }
       const unknown = render(<PlayerCard player={{ id: 'p', name: 'Test', side: 'PROVIDER_UNKNOWN' }} />)
       expect(unknown).not.toContain('PROVIDER_UNKNOWN')
     })
