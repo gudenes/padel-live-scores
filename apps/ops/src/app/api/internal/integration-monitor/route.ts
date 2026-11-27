@@ -32,11 +32,12 @@ async function load(): Promise<IntegrationMonitor> {
       return feedHealth(id, name, runs.count, failures.count, latest.data?.started_at ?? null, latest.data?.status === 'failed', now)
     } catch { return feedHealth(id, name, null, null, null, false, now) }
   }
-  const [worker, fip, crionet] = await Promise.allSettled([health(), feed('fip', 'FIP ingestion', 'www.padelfip.com'), feed('crionet', 'Crionet ingestion', 'widget.matchscorerlive.com')])
+  const race = async () => {
+    try { const result=await serviceClient().rpc('live_race_health').abortSignal(AbortSignal.timeout(8000));return result.error?null:result.data } catch {return null}
+  }
+  const [worker, fip, crionet, live] = await Promise.allSettled([health(), feed('fip', 'FIP ingestion', 'www.padelfip.com'), feed('crionet', 'Crionet ingestion', 'widget.matchscorerlive.com'), race()])
   const feeds = [fip, crionet].flatMap(result => result.status === 'fulfilled' ? [result.value] : [])
-  let race:unknown=null
-  try { const result=await serviceClient().rpc('live_race_health').abortSignal(AbortSignal.timeout(8000));if(!result.error)race=result.data } catch {}
-  return {...monitorSnapshot(worker.status === 'fulfilled' ? worker.value : null, feeds, Date.now()),liveRace:liveRaceHealth(race)}
+  return {...monitorSnapshot(worker.status === 'fulfilled' ? worker.value : null, feeds, Date.now()),liveRace:liveRaceHealth(live.status==='fulfilled'?live.value:null)}
 }
 export async function GET() {
   const session = await auth()

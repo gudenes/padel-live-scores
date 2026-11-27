@@ -20,7 +20,10 @@ export async function GET() {
 
   const supabase = serviceClient()
 
-  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, rankingsHealth] = await Promise.all([
+  const race = async () => {
+    try {const r=await supabase.rpc('live_race_health').abortSignal(AbortSignal.timeout(6000));return r.error?null:r.data}catch{return null}
+  }
+  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, rankingsHealth, raceData] = await Promise.all([
     fetchHealth(supabase),
     fetchFreshness(supabase),
     fetchQuality(supabase),
@@ -29,11 +32,10 @@ export async function GET() {
     fetchOngoing(supabase),
     fetchCronStats(supabase),
     fetchRankingsHealth(supabase),
+    race(),
   ])
 
   ;(health as Record<string, unknown>)['cron:rankings'] = rankingsHealth
-  let raceData:unknown=null
-  try {const r=await supabase.rpc('live_race_health').abortSignal(AbortSignal.timeout(6000));if(!r.error)raceData=r.data}catch{}
   for(const race of liveRaceHealth(raceData).genders) {
     ;(health as Record<string,unknown>)['live-race:'+race.gender]={
       status:race.status==='healthy'?'ok':race.status==='warning'?'partial':race.status,
