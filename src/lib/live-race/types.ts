@@ -1,8 +1,9 @@
+export type PendingReason = 'profile_unavailable' | 'profile_not_loaded' | 'baseline_mismatch' | 'incomplete_history' | 'ambiguous_results' | 'overlapping_events'
 export type Gender = 'men' | 'women'
 export interface RacePlayer {
   id: string; name: string; display_name?: string | null; country: string | null; avatar_url: string | null
   profile_url?: string | null; category: Gender; race_ranking: number; race_points: number
-  officialRank: number; officialPoints: number; liveGain: number; pending: boolean
+  officialRank: number; officialPoints: number; liveGain: number; pending: boolean; pendingReason?: PendingReason
 }
 export interface Tournament {
   id: string; name: string; level: string; starts_at: string; ends_at: string; fip_id?: string | null
@@ -17,6 +18,7 @@ export interface TournamentResult { key: string; name: string; date: string; poi
 export interface Breakdown { date: string; results: TournamentResult[] }
 export interface Award { playerId: string; tournament: Tournament; points: number; uncertain: boolean }
 export interface RaceSnapshot {
+  pendingReasons?: Partial<Record<PendingReason, number>>
   version: 1; gender: Gender; baselineDate: string; checkedAt: string; computedAt: string
   players: RacePlayer[]; totalPlayers: number; appliedPlayers: number; pendingPlayers: number
   resultCount: number; status: 'live' | 'official' | 'partial' | 'stale'; error?: string

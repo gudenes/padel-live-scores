@@ -7,6 +7,7 @@ import { formatBytes, type IntegrationMonitor, type Signal } from '@/lib/integra
 import styles from './monitor.module.css'
 
 const labels: Record<Signal, string> = { healthy: 'Healthy', warning: 'Attention', error: 'Issue', unknown: 'Unknown / idle' }
+const pendingLabels:Record<string,string>={profile_unavailable:'Profile fetch failed',profile_not_loaded:'Profile not loaded yet',baseline_mismatch:'History does not reconcile with official points',incomplete_history:'Incomplete history',ambiguous_results:'Result needs verification',overlapping_events:'Overlapping events'}
 const categories: Record<string,string> = { event_page: 'Event pages', admin_ajax_draw: 'Draws & entry-list requests', player_profile: 'Player profiles', rest_ranking: 'Rankings', rest_player_search: 'Player search', rest_discover: 'Tournament discovery', rest_other: 'Other API requests', other_fip: 'PDFs, images & other FIP' }
 function Badge({ status, label }: { status: Signal; label?: string }) { return <span className={`${styles.badge} ${styles[status]}`}><span aria-hidden="true" className={styles.dot} />{label ?? labels[status]}</span> }
 function when(value: string | null) { return value ? `${new Date(value).toISOString().slice(0, 19).replace('T', ' ')} UTC` : 'No observation yet' }
@@ -55,6 +56,25 @@ export function IntegrationMonitorView({ initialData, embedded = false, compact 
         <section className={styles.card}><div className={styles.cardTop}><h2>Data worker</h2><Badge status={signal(data.runtime.status)} /></div><p>{data.runtime.message}</p><div className={styles.value}>{data.runtime.uptimeSeconds === null ? '—' : `${Math.floor(data.runtime.uptimeSeconds/3600)}h ${Math.floor(data.runtime.uptimeSeconds%3600/60)}m`}</div><span className={styles.caption}>Uptime since last restart</span></section>
         {data.feeds.map(feed => <section className={styles.card} key={feed.id}><div className={styles.cardTop}><h2>{feed.name}</h2><Badge status={signal(feed.status)} /></div><p>{feed.message}</p><div className={styles.value}>{feed.runs?.toLocaleString() ?? '—'} <small>runs</small></div><span className={styles.caption}>{feed.failures === null ? 'Failure counts unavailable' : `${feed.failures.toLocaleString()} failed · last 24 hours`}</span><div className={styles.detail}>Last completed run: {when(feed.lastRun)}</div></section>)}
       </div>
+      <div className={styles.cards}>
+        {data.liveRace?.genders.map(race=><section className={styles.card} key={race.gender}>
+          <div className={styles.cardTop}><h2>Live Race · {race.gender==='women'?'Women':'Men'}</h2><Badge status={signal(race.status)} /></div>
+          <p>{race.message}</p><div className={styles.value}>{race.applied} <small>players with live gains</small></div>
+          <p>{race.pending} pending · {race.total} ranked</p>
+          {Object.entries(race.reasons).map(([key,count])=><div className={styles.detail} key={key}>{pendingLabels[key]??key}: {count}</div>)}
+          <div className={styles.detail}>Official baseline: {race.baselineDate??'—'} · Live calculation: {when(race.computedAt)}</div>
+          <div className={styles.detail}>Shared across all regions · last producer: {race.region??'—'}</div>
+        </section>)}
+        {!data.liveRace?.available&&<div className={styles.notice}>Live Race monitoring is unavailable. Official ranking freshness does not confirm live calculations.</div>}
+      </div>
+      <section className={styles.card}>
+        <div className={styles.cardTop}><h2>Live Race proxy attempts</h2><span className={styles.caption}>All regions · last 24 hours · includes recovered failures</span></div>
+        {data.liveRace?.routes.length?<div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Route</th><th>Attempts</th><th>Failed attempts</th><th>Consumption</th></tr></thead><tbody>
+          {data.liveRace.routes.map(route=><tr key={route.route}><th scope="row">{routeName(route.route)}</th><td>{route.requests}</td><td>{route.failures}</td><td>{formatBytes(route.bytes)}</td></tr>)}
+        </tbody></table></div>:<p>No recorded Live Race proxy attempts yet.</p>}
+        {data.liveRace?.errors.map(error=><div className={styles.detail} key={error.code}>{error.code}: {error.count}</div>)}
+        <p className={styles.detail}>Each profile fetch also appears in ingestion history. A recovered proxy failure remains counted here even when the overall fetch succeeds.</p>
+      </section>
       {!data.runtime.telemetryAvailable && <div className={styles.notice}>Detailed proxy telemetry is not available yet. It will appear after the proxy worker rollout. Missing counters are not shown as zero usage.</div>}
       <div className={styles.columns}>
         <section className={styles.card}><div className={styles.cardTop}><h2>Residential daily budget</h2><Badge status={signal(budget?.status ?? 'unknown')} label={stale ? 'Unknown' : budget?.limitBytes === 0 ? 'Disabled' : budget?.status === 'healthy' ? 'Within budget' : undefined} /></div>
@@ -64,11 +84,11 @@ export function IntegrationMonitorView({ initialData, embedded = false, compact 
         <section className={styles.card}><div className={styles.cardTop}><h2>Traffic split</h2><span className={styles.caption}>Since worker restart</span></div><div className={styles.value}>{data.runtime.telemetryAvailable && share !== null ? `${share.toFixed(1)}%` : '—'} <small>residential</small></div><p>{data.runtime.telemetryAvailable ? `${formatBytes(Math.max(0,totalBytes-residentialBytes))} fixed · ${formatBytes(residentialBytes)} residential` : 'Awaiting route-level measurements'}</p><div className={styles.detail}>Fixed proxies are the primary route. Residential is reserved for fallback. These totals are estimates, not monthly consumption.</div><a className={styles.link} href="https://dashboard.webshare.io/dashboard" target="_blank" rel="noreferrer">View billed usage and current plan costs in Webshare ↗</a></section>
       </div>
       {!compact && <>
-      <section className={styles.card}><div className={styles.cardTop}><h2>Proxy routes</h2><span className={styles.caption}>Latest result · counters since restart</span></div>
+      <section className={styles.card}><div className={styles.cardTop}><h2>Scraper proxy routes</h2><span className={styles.caption}>Latest result · counters since restart</span></div>
         {!data.routes.length ? <p className={styles.detail}>No route-level readings yet. A healthy worker alone does not confirm that FIP is reachable.</p> : <div className={styles.tableWrap}><table className={styles.table}><caption className={styles.srOnly}>Fixed and residential proxy health and estimated bandwidth</caption><thead><tr><th>Route</th><th>Status</th><th>Requests</th><th>Failures</th><th>Consumption</th><th>Last success</th></tr></thead><tbody>{data.routes.map(route => <tr key={route.id}><th scope="row">{routeName(route.id)}{route.cooldownUntil && Date.parse(route.cooldownUntil)>clock && <span className={styles.detail}>Cooling down until {`${new Date(route.cooldownUntil).toISOString().slice(11,19)} UTC`}</span>}</th><td><Badge status={signal(route.status)} /></td><td>{route.requests.toLocaleString()}</td><td>{route.failures.toLocaleString()}</td><td>{formatBytes(route.bytes)}</td><td>{when(route.lastSuccess)}</td></tr>)}</tbody></table></div>}
       </section>
       <section className={styles.card}><div className={styles.cardTop}><h2>Where bandwidth goes</h2><span className={styles.caption}>Estimated · since restart</span></div>{data.categories.length ? <div className={styles.breakdown}>{data.categories.map(row => <div key={row.name}><span>{categories[row.name] ?? row.name}</span><strong>{formatBytes(row.bytes)}</strong><span className={styles.caption}>{row.requests.toLocaleString()} requests</span></div>)}</div> : <p>No category measurements available.</p>}</section>
-      <footer className={styles.footer}><span>Green: recent success · Amber: elevated failures or ≥80% budget · Red: latest failure or budget exhausted · Grey: unavailable or idle</span><div><Link href="/system/integration-health">All integration diagnostics</Link><Link href="/system/padelgod-health">Ingestion coverage</Link></div></footer>
+      <footer className={styles.footer}><span>Green: current data and no recorded failures · Amber: partial data, recorded failures or ≥80% budget · Red: latest failure or budget exhausted · Grey: unavailable or idle</span><div><Link href="/system/integration-health">All integration diagnostics</Link><Link href="/system/padelgod-health">Ingestion coverage</Link></div></footer>
       </>}
     </>}
   </div>

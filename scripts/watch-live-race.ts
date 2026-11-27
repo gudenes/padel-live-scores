@@ -1,4 +1,4 @@
-/** Race worker. No remote database writes. The existing FIP importer owns the Monday
+/** Race worker. Derived state and telemetry are shared; the FIP importer owns the Monday
  * publication; this worker adopts new snapshots and revalidates each breakdown.
  * Polling every minute also catches delayed Monday publications and corrections.
  */
@@ -15,7 +15,7 @@ await mkdir(path.dirname(lock),{recursive:true})
 if(!await acquireRaceLock(lock)) throw new Error('Race watcher already running')
 let stopped=false
 for(const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>{stopped=true})
-console.log('Race watcher: full FIP snapshots + real results; no remote writes. Checks every minute, including Mondays.')
+console.log('Race watcher: full FIP snapshots + real results; shared derived snapshots and monitored fetches. Checks every minute, including Mondays.')
 try {
   do {
     for(const gender of ['men','women'] as const) {

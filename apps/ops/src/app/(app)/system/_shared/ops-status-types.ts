@@ -86,6 +86,8 @@ export const TILES: readonly CronTile[] = [
   { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min', description: 'Polls padelapi.org for live match scores, upserts point/game/set data, detects stale matches stuck as live' },
   { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h', description: 'Syncs match metadata (players, courts, rounds) for all active tournaments from padelapi.org' },
   { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC', description: 'Weekly full sync: tournaments, players, seasons, and FIP logos from padelapi.org' },
+  { key: 'live-race:men', label: 'Live Race · Men', schedule: 'Continuous · shared across regions', description: 'Match-based live calculation freshness, pending players and source validation.' },
+  { key: 'live-race:women', label: 'Live Race · Women', schedule: 'Continuous · shared across regions', description: 'Match-based live calculation freshness, pending players and source validation.' },
   { key: 'cron:rankings', label: 'FIP Rankings', schedule: 'padelgod · Mon 06–12h + Tue–Sat 07h UTC', description: 'padelgod player-rankings worker → player_ranking_snapshots. Health = data freshness: is the current ISO week captured (official + race × men/women)?' },
   { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
   { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },

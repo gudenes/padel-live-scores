@@ -1,22 +1,13 @@
-import { acquireRaceLock } from './lock.ts'
+import { acquireSharedRace, readSharedRace, loadSharedProfiles, writeSharedProfile, startRaceRun, finishRaceRun, startProfileJob, finishProfileJob, recordFetchAttempt, type ProfileCache } from './store.ts'
 import { createClient } from '@supabase/supabase-js'
-import { mkdir, readFile, writeFile, rename, rm } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { applyAwards, identity, rankPlayers, supportedLevels, tournamentAwards } from './engine.ts'
-import { fetchBreakdown } from './fip.ts'
+import { applyAwards, bestResults, identity, rankPlayers, supportedLevels, tournamentAwards } from './engine.ts'
+import { fetchBreakdown, FipFetchError } from './fip.ts'
 import type { Award, Breakdown, Gender, MatchResult, RacePlayer, RaceSnapshot, Tournament } from './types.ts'
 
-const directory=()=>path.join(process.cwd(),'.local/race')
-const cachePath=(gender:Gender)=>path.join(directory(),`${gender}.json`)
-export async function readRace(gender:Gender):Promise<RaceSnapshot|null> {
-  try{return JSON.parse(await readFile(cachePath(gender),'utf8'))}catch{return null}
-}
-async function atomic(file:string,data:unknown) {
-  await mkdir(path.dirname(file),{recursive:true})
-  const temporary=`${file}.${process.pid}.${crypto.randomUUID()}.tmp`
-  await writeFile(temporary,JSON.stringify(data),{mode:0o600});await rename(temporary,file)
-}
+export const readRace=readSharedRace
 function clients() {
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL,service=process.env.SUPABASE_SERVICE_KEY,anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if(!url||!service||!anon) throw new Error('Local Supabase read configuration missing')
@@ -51,45 +42,53 @@ export async function loadBaseline(gender:Gender) {
   } as RacePlayer))
   return {date,players}
 }
-interface ProfileCache {baselineDate:string; fetchedAt:string; attemptedAt:string; data:Breakdown|null;error?:string}
-async function profile(player:RacePlayer,date:string,fetchAllowed:boolean):Promise<Breakdown|null> {
-  const file=path.join(directory(),'profiles',`${player.id}.json`)
-  let cached:ProfileCache|null=null
-  try{cached=JSON.parse(await readFile(file,'utf8'))}catch{}
-  if(cached?.baselineDate===date && cached.data?.date===date) return cached.data
-  if(!fetchAllowed || !player.profile_url || (cached?.baselineDate===date && Date.now()-Date.parse(cached.attemptedAt)<15*60_000)) return null
-  const now=new Date().toISOString()
-  try {
-    const data=await fetchBreakdown(player.profile_url)
-    await atomic(file,{baselineDate:date,fetchedAt:now,attemptedAt:now,data})
-    return data
-  }catch {
-    await atomic(file,{baselineDate:date,fetchedAt:cached?.fetchedAt??'',attemptedAt:now,data:null,error:'FIP profile unavailable'})
-    return null
+export function profileMatchesBaseline(data:Breakdown|null|undefined,date:string,points:number):boolean {
+  const results=data?.results.filter(r=>r.date.startsWith(date.slice(0,4)))??[]
+  return data?.date===date && !results.some(r=>r.points===0) && bestResults(results)===points
+}
+async function profile(player:RacePlayer,date:string,profiles:Map<string,ProfileCache>,fetchAllowed:boolean,runId:string):Promise<Breakdown|null> {
+  let cached=profiles.get(player.id)
+  // Migrate valid local history during rollout; retry old failures through failover.
+  if(!cached) {
+    try {
+      const local:ProfileCache=JSON.parse(await readFile(path.join(process.cwd(),'.local/race/profiles',player.id+'.json'),'utf8'))
+      if(local.baselineDate===date&&profileMatchesBaseline(local.data,date,player.officialPoints))cached=local
+    } catch {}
+    if(cached){await writeSharedProfile(player.id,date,cached);profiles.set(player.id,cached)}
   }
+  if(profileMatchesBaseline(cached?.data,date,player.officialPoints))return cached!.data
+  if(!fetchAllowed||!player.profile_url||(cached&&Date.now()-Date.parse(cached.attemptedAt)<15*60_000))return cached?.data??null
+  const now=new Date().toISOString(),started=Date.now()
+  const jobId=await startProfileJob(player.profile_url)
+  let data:Breakdown|null=null,error:string|undefined
+  try {data=await fetchBreakdown(player.profile_url,a=>recordFetchAttempt(runId,jobId,a))}
+  catch(e) {
+    if(!(e instanceof FipFetchError)) {await finishProfileJob(jobId,started,'LIVE_RACE_TELEMETRY_ERROR');throw e}
+    error=e.code
+  }
+  await finishProfileJob(jobId,started,error)
+  const next:ProfileCache={baselineDate:date,fetchedAt:data?now:cached?.fetchedAt??'',attemptedAt:now,data:data??cached?.data??null,...(error?{error}:{})}
+  await writeSharedProfile(player.id,date,next);profiles.set(player.id,next)
+  return data
 }
-async function canFetchProfile(player:RacePlayer,date:string) {
-  if(!player.profile_url) return false
-  try {
-    const cached:ProfileCache=JSON.parse(await readFile(path.join(directory(),'profiles',`${player.id}.json`),'utf8'))
-    return cached.baselineDate!==date || Date.now()-Date.parse(cached.attemptedAt)>=15*60_000
-  } catch {return true}
-}
-/** All remote database operations are SELECTs; computed caches are per instance. */
+/** Shared derived state and telemetry; official publications remain read-only. */
 export async function refreshRace(gender:Gender,profileBudget=24):Promise<RaceSnapshot|null> {
   if(process.env.NODE_ENV==='production' && process.env.LIVE_RACE_ENABLED!=='true') throw new Error('Live Race refresh disabled')
-  await mkdir(directory(),{recursive:true})
-  const lock=path.join(directory(),`${gender}.lock`)
-  if(!await acquireRaceLock(lock)) return readRace(gender)
-  const previous=await readRace(gender)
+  const lease=await acquireSharedRace(gender)
+  if(!lease)return readRace(gender)
+  let previous:RaceSnapshot|null=null,runId:string|null=null
   try {
+    previous=await readRace(gender)
+    if(previous&&Date.now()-Date.parse(previous.checkedAt)<45_000&&previous.status!=='stale')return previous
+    runId=await startRaceRun(gender)
     const {date,players}=await loadBaseline(gender)
     if(previous && (date<previous.baselineDate || players.length<previous.totalPlayers*0.9)) throw new Error('Incomplete or older FIP publication rejected')
     const now=new Date().toISOString()
-    // Persist official rows promptly so the local UI never waits for hundreds of profile reads.
-    if(!previous) await atomic(cachePath(gender),{version:1,gender,baselineDate:date,checkedAt:now,computedAt:now,players,totalPlayers:players.length,appliedPlayers:0,pendingPlayers:0,resultCount:0,status:'official',reconciliation:null} satisfies RaceSnapshot)
+    // Persist official rows promptly so the public UI never waits for hundreds of profile reads.
+    if(!previous) await lease.publish({version:1,gender,baselineDate:date,checkedAt:now,computedAt:now,players,totalPlayers:players.length,appliedPlayers:0,pendingPlayers:0,resultCount:0,status:'official',reconciliation:null} satisfies RaceSnapshot)
+    const profiles=await loadSharedProfiles(date)
     const {db}=clients()
-    const tournaments=await pages<Tournament>((a,b)=>db.from('tournaments').select('id,name,level,starts_at,ends_at,fip_id').in('level',supportedLevels).gte('ends_at',date).lte('starts_at',now).order('id').range(a,b))
+    const tournaments=await pages<Tournament>((a,b)=>db.from('tournaments').select('id,name,level,starts_at,ends_at,fip_id').in('level',supportedLevels).eq('source_suppressed',false).gte('ends_at',date).lte('starts_at',now).order('id').range(a,b))
     const groups=new Map<string,Tournament[]>()
     for(const tournament of tournaments){const key=`${identity(tournament.name)}:${tournament.starts_at.slice(0,10)}`;groups.set(key,[...(groups.get(key)??[]),tournament])}
     const awards:Award[]=[];let resultCount=0
@@ -108,28 +107,37 @@ export async function refreshRace(gender:Gender,profileBudget=24):Promise<RaceSn
         const index=cursor++,p=players[index]
         const own=byPlayer.get(p.id)??[]
         if(!own.length){updated[index]=p;continue}
-        let data=await profile(p,date,false)
-        if(!data && !own.some(a=>a.uncertain) && await canFetchProfile(p,date) && budget>0) {
-          budget--;data=await profile(p,date,true)
+        let data=await profile(p,date,profiles,false,runId!)
+        if(!profileMatchesBaseline(data,date,p.officialPoints) && !own.some(a=>a.uncertain) && p.profile_url && (!profiles.has(p.id)||Date.now()-Date.parse(profiles.get(p.id)!.attemptedAt)>=15*60_000) && budget>0) {
+          budget--;data=await profile(p,date,profiles,true,runId!)
         }
         updated[index]=applyAwards(p,data,own,date)
+        if(updated[index].pendingReason==='profile_not_loaded'&&profiles.get(p.id)?.error)updated[index].pendingReason='profile_unavailable'
+        if(own.some(a=>a.uncertain)&&updated[index].pending)updated[index].pendingReason='ambiguous_results'
       }
     }
-    await Promise.all([consume(),consume(),consume()])
+    const consumers=await Promise.allSettled([consume(),consume(),consume()])
+    const failed=consumers.find(r=>r.status==='rejected')
+    if(failed?.status==='rejected')throw failed.reason
     const latest=await db.from('player_ranking_snapshots').select('ranking_date').eq('type','race').eq('gender',gender).order('ranking_date',{ascending:false}).limit(1).maybeSingle()
     if(latest.error||latest.data?.ranking_date!==date) throw new Error('FIP publication changed during calculation; retrying')
     const appliedPlayers=updated.filter(p=>p.liveGain!==0).length,pendingPlayers=updated.filter(p=>p.pending).length
     const fingerprint=(rows:RacePlayer[])=>createHash('sha256').update(JSON.stringify(rows.map(p=>[p.id,p.officialRank,p.officialPoints]).sort())).digest('hex')
     const rebased=previous && (previous.baselineDate!==date || fingerprint(previous.players)!==fingerprint(players))
-    const reconciliation=rebased?{previousDate:previous.baselineDate,at:now,changedPlayers:players.filter(p=>previous.players.find(old=>old.id===p.id)?.race_points!==p.officialPoints).length}:previous?.reconciliation??null
+    const prior=previous
+    const reconciliation=prior && rebased?{previousDate:prior.baselineDate,at:now,changedPlayers:players.filter(p=>prior.players.find(old=>old.id===p.id)?.race_points!==p.officialPoints).length}:previous?.reconciliation??null
+    const pendingReasons:NonNullable<RaceSnapshot['pendingReasons']>={}
+    for(const p of updated)if(p.pending&&p.pendingReason)pendingReasons[p.pendingReason]=(pendingReasons[p.pendingReason]??0)+1
     const snapshot:RaceSnapshot={version:1,gender,baselineDate:date,checkedAt:now,computedAt:new Date().toISOString(),
-      players:appliedPlayers?rankPlayers(updated):updated,totalPlayers:players.length,appliedPlayers,pendingPlayers,resultCount,
+      pendingReasons,players:appliedPlayers?rankPlayers(updated):updated,totalPlayers:players.length,appliedPlayers,pendingPlayers,resultCount,
       status:pendingPlayers?'partial':appliedPlayers?'live':'official',reconciliation}
-    if(rebased) await atomic(path.join(directory(),'reconciliations',`${gender}-${now.replace(/[:.]/g,'-')}.json`),{previousDate:previous.baselineDate,newDate:date,reconciliation,previous:previous.players.map(p=>({id:p.id,points:p.race_points})),official:players.map(p=>({id:p.id,points:p.officialPoints}))})
-    await atomic(cachePath(gender),snapshot)
+    await lease.publish(snapshot)
+    await finishRaceRun(runId!,snapshot)
     return snapshot
   } catch(e) {
-    if(previous){const stale={...previous,status:'stale' as const,error:e instanceof Error?e.message:'Local refresh failed'};await atomic(cachePath(gender),stale);return stale}
+    const code=e instanceof FipFetchError?e.code:'LIVE_RACE_REFRESH_FAILED'
+    if(runId)await finishRaceRun(runId,previous,code)
+    if(previous){const stale={...previous,status:'stale' as const,error:code};await lease.publish(stale);return stale}
     throw e
-  } finally {await rm(lock,{recursive:true,force:true})}
+  } finally {await lease.release()}
 }

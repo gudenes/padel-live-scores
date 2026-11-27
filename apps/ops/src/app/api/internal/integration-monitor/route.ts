@@ -1,3 +1,4 @@
+import { liveRaceHealth } from '@/lib/live-race-health'
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
@@ -33,7 +34,9 @@ async function load(): Promise<IntegrationMonitor> {
   }
   const [worker, fip, crionet] = await Promise.allSettled([health(), feed('fip', 'FIP ingestion', 'www.padelfip.com'), feed('crionet', 'Crionet ingestion', 'widget.matchscorerlive.com')])
   const feeds = [fip, crionet].flatMap(result => result.status === 'fulfilled' ? [result.value] : [])
-  return monitorSnapshot(worker.status === 'fulfilled' ? worker.value : null, feeds, Date.now())
+  let race:unknown=null
+  try { const result=await serviceClient().rpc('live_race_health').abortSignal(AbortSignal.timeout(8000));if(!result.error)race=result.data } catch {}
+  return {...monitorSnapshot(worker.status === 'fulfilled' ? worker.value : null, feeds, Date.now()),liveRace:liveRaceHealth(race)}
 }
 export async function GET() {
   const session = await auth()
