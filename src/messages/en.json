@@ -2904,6 +2904,8 @@
     "resultsHeading": "Padel tournament results",
     "resultsSchedule": "Tournament results and schedule",
     "moreCountries": "+{count} more",
-    "match": "Match"
+    "match": "Match",
+    "left": "Left side",
+    "right": "Right side"
   }
 }

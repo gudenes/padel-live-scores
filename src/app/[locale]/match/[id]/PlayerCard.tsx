@@ -1,5 +1,6 @@
 'use client'
 // Player card, avatar circle, and square hero photo — used in the Players tab and hero row.
+import { competitionPlayerSideLabel } from '@/lib/competition-display'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { SeasonStats } from '@/lib/player-season-stats'
@@ -23,7 +24,7 @@ export function PlayerCard({ player, winner, accent, seasonStats }: { player: an
             {player.country && <FlagImage country={player.country} size={14} />}
             {toShortName(player.display_name ?? player.name)}
           </div>
-          {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? labels('drive') : player.side === 'backhand' ? labels('backhand') : labels('unknown')}</div>}
+          {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{competitionPlayerSideLabel(player.side, labels)}</div>}
         </div>
         {/* Chevron indicator */}
         <span style={{ fontSize: 14, color: MUTED, flexShrink: 0 }}>›</span>

@@ -2872,6 +2872,8 @@
     "resultsHeading": "Résultats du tournoi de padel",
     "resultsSchedule": "Résultats et programme du tournoi",
     "moreCountries": "+{count} autres",
-    "match": "Match"
+    "match": "Match",
+    "left": "Côté gauche",
+    "right": "Côté droit"
   }
 }
