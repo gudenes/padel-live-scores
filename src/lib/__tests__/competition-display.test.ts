@@ -10,11 +10,12 @@ import fr from '../../messages/fr.json'
 import it_ from '../../messages/it.json'
 import pt from '../../messages/pt.json'
 
+type TestTranslator = (key: string, values?: Record<string, string | number>) => string
 const locales = { en, es, fr, it: it_, pt }
 for (const [locale, messages] of Object.entries(locales)) {
   describe(locale, () => {
     const errors: unknown[] = []
-    const t = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'competitionLabels', onError: e => errors.push(e) })
+    const t = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'competitionLabels', onError: e => errors.push(e) }) as unknown as TestTranslator
     it('formats all labels, ICU plurals and known provider rounds without missing keys', () => {
       for (const [key, value] of Object.entries(messages.competitionLabels)) {
         if (typeof value === 'string') expect(t(key, { count: 2, date: '2026-04-26' })).not.toContain('competitionLabels.')
@@ -42,7 +43,7 @@ for (const [locale, messages] of Object.entries(locales)) {
       expect(buildSeoSummary({ locale, broadcasters: [{ name: 'TV', country_iso2: 'es' }] }).named[0].countriesShown).toEqual([localizedRegionName('ES', locale)])
     })
     it('formats the legacy locked prediction without exposing keys', () => {
-      const p = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'prediction', onError: e => errors.push(e) })
+      const p = createTranslator({ locale, messages: messages as AbstractIntlMessages, namespace: 'prediction', onError: e => errors.push(e) }) as unknown as TestTranslator
       expect(p('yourPrediction')).not.toContain('prediction.')
       expect(p('locked')).not.toContain('prediction.')
       expect(p('win', { pair: 'A / B', margin: '2-0' })).toContain('A / B')
