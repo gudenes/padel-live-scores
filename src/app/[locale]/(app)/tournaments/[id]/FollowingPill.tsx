@@ -20,6 +20,7 @@ type Props = {
 
 export default function FollowingPill({ pairLabel, variant, eliminatedAt, onDismiss }: Props) {
   const t = useTranslations('draw')
+  const labels = useTranslations('competitionLabels')
   const accent = variant === 'defendingChamp' ? ORANGE : GREEN
   const lblText = variant === 'defendingChamp' ? t('defendingChamp') : t('following')
   const bg = variant === 'defendingChamp'
@@ -49,7 +50,7 @@ export default function FollowingPill({ pairLabel, variant, eliminatedAt, onDism
       </span>
       <button
         onClick={onDismiss}
-        aria-label="Clear"
+        aria-label={labels('clear')}
         style={{
           color: MUTED, fontSize: 14, background: 'none',
           border: 'none', cursor: 'pointer', padding: '0 4px',

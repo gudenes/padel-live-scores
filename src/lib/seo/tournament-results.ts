@@ -108,7 +108,7 @@ function bestDate(m: TournamentResultMatchInput): number {
  */
 export function buildTournamentResults(
   matches: TournamentResultMatchInput[],
-  opts?: { category?: 'men' | 'women' | null },
+  opts?: { category?: 'men' | 'women' | null; translate?: (key: string) => string },
 ): TournamentResults {
   const filtered = matches.filter((m) => {
     if (opts?.category && m.category && m.category !== opts.category) return false
@@ -144,16 +144,16 @@ export function buildTournamentResults(
     // carries the meaning instead.
     const score = winner && !isSpecial ? scoreString(m.sets, winner === 2) : null
     const suffix =
-      m.status === 'retired' ? ' (retired)' : m.status === 'walkover' ? ' (walkover)' : ''
+      m.status === 'retired' ? ` (${opts?.translate?.('retired') ?? 'retired'})` : m.status === 'walkover' ? ` (${opts?.translate?.('walkover') ?? 'walkover'})` : ''
 
     let headline: string
     if (winner) {
       const winNames = winner === 1 ? p1 : p2
       const loseNames = winner === 1 ? p2 : p1
-      headline = `${winNames} beat ${loseNames}${score ? ` ${score}` : ''}${suffix}`
+      headline = `${winNames} ${opts?.translate?.('beat') ?? 'beat'} ${loseNames}${score ? ` ${score}` : ''}${suffix}`
     } else if (m.status === 'live') {
       const liveScore = scoreString(m.sets, false)
-      headline = liveScore ? `${p1} vs ${p2} — live ${liveScore}` : `${p1} vs ${p2} — live`
+      headline = liveScore ? `${p1} vs ${p2} — ${opts?.translate?.('live') ?? 'live'} ${liveScore}` : `${p1} vs ${p2} — ${opts?.translate?.('live') ?? 'live'}`
     } else {
       headline = `${p1} vs ${p2}`
     }

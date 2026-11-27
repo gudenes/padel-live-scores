@@ -43,7 +43,7 @@ function scoreString(sets: MatchSummaryInput['sets']): string {
     .join(', ')
 }
 
-export function buildMatchSummary(input: MatchSummaryInput): MatchSummary {
+export function buildMatchSummary(input: MatchSummaryInput, t?: (key: string, values?: Record<string, string | number>) => string): MatchSummary {
   const p1 = shortPair(input.pair1.names)
   const p2 = shortPair(input.pair2.names)
   const tournamentName = input.tournament.name
@@ -87,5 +87,21 @@ export function buildMatchSummary(input: MatchSummaryInput): MatchSummary {
     facts.push('Match was a walkover')
   }
 
+  if (t) {
+    const winner = input.winner_pair === 1 ? p1 : p2
+    const loser = input.winner_pair === 1 ? p2 : p1
+    const result = input.winner_pair === 1 || input.winner_pair === 2
+      ? `${winner} ${t('defeated')} ${loser} ${scoreString(input.sets)}`
+      : `${p1} vs ${p2}${input.status === 'live' ? ` — ${t('live')}` : ''}`
+    headline = `${result.trim()} — ${tournamentName}${round ? ` · ${round}` : ''}`
+    facts.length = 0
+    facts.push(`${t('tournament')}: ${tournamentName}${input.tournament.country ? ` (${input.tournament.country})` : ''}`)
+    if (round) facts.push(`${t('round')}: ${round}`)
+    if (input.tournament.level) facts.push(`${t('level')}: ${input.tournament.level.toUpperCase()}`)
+    if (playedAt) facts.push(t('playedOn', { date: new Date(playedAt).toISOString().slice(0, 10) }))
+    if (input.sets.length) facts.push(`${t('sets')}: ${scoreString(input.sets)}`)
+    if (input.status === 'retired') facts.push(t('retiredMessage'))
+    if (input.status === 'walkover') facts.push(t('walkoverMessage'))
+  }
   return { headline, facts }
 }

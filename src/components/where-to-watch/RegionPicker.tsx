@@ -2,7 +2,8 @@
 
 import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { localizedRegionName } from '@/lib/competition-display'
+import { useLocale, useTranslations } from 'next-intl'
 import { FlagImage } from '@/components/FlagImage'
 
 // Same map as in ChannelGroup.tsx. The 36-entry list is small enough
@@ -43,14 +44,16 @@ export interface RegionPickerProps {
 }
 
 export function RegionPicker({ currentCountry, onPick, onBack }: RegionPickerProps) {
+  const locale = useLocale()
   const t = useTranslations('whereToWatch')
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
     const q = normalize(query.trim())
-    if (!q) return COUNTRIES
-    return COUNTRIES.filter(c => normalize(c.name).includes(q) || c.iso2.includes(q))
-  }, [query])
+    const countries = COUNTRIES.map(c => ({ ...c, name: localizedRegionName(c.iso2, locale) })).sort((a, b) => a.name.localeCompare(b.name, locale))
+    if (!q) return countries
+    return countries.filter(c => normalize(c.name).includes(q) || c.iso2.includes(q))
+  }, [query, locale])
 
   return (
     <div data-wtw-anim style={{ animation: 'wtw-fade-in 220ms ease-out both' }}>

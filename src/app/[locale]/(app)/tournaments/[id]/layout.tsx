@@ -8,6 +8,7 @@
 //   3. Emits an Article JSON-LD for the editorial when one exists, giving
 //      Google first-pass structured-data indexing of the post.
 
+import { competitionRoundLabel } from '@/lib/competition-display'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -33,9 +34,10 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params
+  const labels = await getTranslations({ locale, namespace: 'competitionLabels' })
 
   let supabase
-  try { supabase = createServerClient() } catch { return { title: 'Tournament | Padel Nachos' } }
+  try { supabase = createServerClient() } catch { return { title: `${labels('tournament')} | Padel Nachos` } }
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const isGhost = !tournament || !tournament.name?.trim() || !tournament.starts_at
   if (isGhost) {
     return {
-      title: 'Tournament | Padel Nachos',
+      title: `${labels('tournament')} | Padel Nachos`,
       robots: { index: false, follow: false },
     }
   }
@@ -77,6 +79,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TournamentLayout({ params, children }: Props) {
   const { id, locale } = await params
+  const labels = await getTranslations({ locale, namespace: 'competitionLabels' })
 
   let tournamentExists: boolean | null = null
   try {
@@ -163,7 +166,7 @@ export default async function TournamentLayout({ params, children }: Props) {
         sets: ((row.sets as Array<{ set_number: number; pair1_games: number | null; pair2_games: number | null }>) ?? []),
       }
     })
-    const built = buildTournamentResults(matchInputs)
+    const built = buildTournamentResults(matchInputs, { translate: labels })
     results = built.rows.length > 0 ? built : null
 
     const tournament = tournamentRes.data
@@ -208,13 +211,13 @@ export default async function TournamentLayout({ params, children }: Props) {
 
     // Build the sr-only broadcaster sentence for this tournament.
     if (seoData?.channelMeta) {
-      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters })
+      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters, locale })
       const parts: string[] = [`${seoData.channelMeta.name} YouTube`]
       for (const b of summaryData.named) {
         const countries = b.countriesShown.join(', ')
         parts.push(
           b.extraCountryCount > 0
-            ? `${b.name} (${countries}, +${b.extraCountryCount} more)`
+            ? `${b.name} (${countries}, ${labels('moreCountries', { count: b.extraCountryCount })})`
             : `${b.name} (${countries})`,
         )
       }
@@ -272,7 +275,7 @@ export default async function TournamentLayout({ params, children }: Props) {
           client page's hero block as a styled div for design reasons. */}
       {tournamentName && (
         <header className="sr-only">
-          <h1>{tournamentName} — Padel Tournament Results</h1>
+          <h1>{tournamentName} — {labels('resultsHeading')}</h1>
           {seoSentence && <p>{seoSentence}</p>}
         </header>
       )}
@@ -282,15 +285,15 @@ export default async function TournamentLayout({ params, children }: Props) {
           each match into the initial HTML for every crawler. sr-only so it
           doesn't duplicate the styled client UI; it is still fully crawlable. */}
       {results && (
-        <section className="sr-only" aria-label="Tournament results and schedule">
-          <h2>{tournamentName ? `${tournamentName} — Results` : 'Results'}</h2>
+        <section className="sr-only" aria-label={labels('resultsSchedule')}>
+          <h2>{tournamentName ? `${tournamentName} — ${labels('results')}` : labels('results')}</h2>
           <ul>
             {results.rows.map((r) => {
               const matchHref = locale === 'en' ? `/match/${r.id}` : `/${locale}/match/${r.id}`
               return (
                 <li key={r.id}>
                   <a href={matchHref}>
-                    {r.round ? `${r.round}: ` : ''}{r.headline}
+                    {r.round ? `${competitionRoundLabel(r.round, labels)}: ` : ''}{r.headline}
                   </a>
                 </li>
               )

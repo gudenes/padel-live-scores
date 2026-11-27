@@ -1,4 +1,5 @@
 'use client'
+import { competitionRoundLabel } from '@/lib/competition-display'
 // src/app/(app)/tournaments/[id]/page.tsx
 // V3 Tournament Detail — matches by round with gender toggle, stage selector,
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
@@ -204,6 +205,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const format = useFormatter()
+  const labels = useTranslations('competitionLabels')
   const tTournament = useTranslations('tournament')
   const tWorldCup = useTranslations('worldCup')
   const tCommon = useTranslations('common')
@@ -1203,7 +1205,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       )
                     }
                     if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
-                      parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString()}`)
+                      parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString(locale)}`)
                     } else {
                       const raw = activeTournamentObj.prize_money?.trim()
                       if (raw && !/^[^\d]*0$/.test(raw)) parts.push(raw)
@@ -1322,7 +1324,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               )
               return (
                 <button
-                  key={round}
+                  key={competitionRoundLabel(round, labels)}
                   data-active={active ? 'true' : undefined}
                   onClick={() => setSelectedRound(round)}
                   style={{
@@ -1344,7 +1346,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       color: active ? GREEN : MUTED,
                       textTransform: 'uppercase',
                     }}>
-                      {round}
+                      {competitionRoundLabel(round, labels)}
                     </span>
                   </div>
                   {roundDates[round] && (
@@ -1377,7 +1379,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 {liveMatches.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader
-                      label="Live now" dot color={LIVE_RED}
+                      label={labels('liveNow')} dot color={LIVE_RED}
                       right={syncAgo}
                       rightColor={justUpdated ? GREEN : undefined}
                     />
@@ -1389,7 +1391,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
                 {warmingUpMatches.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
-                    <SectionHeader dot color={ORANGE} label="Warming up" />
+                    <SectionHeader dot color={ORANGE} label={labels('warmingUp')} />
                     {warmingUpMatches.map(m => (
                       <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={activeTournamentObj?.level} />
                     ))}
@@ -1398,7 +1400,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
                 {scheduledMatches.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
-                    <SectionHeader label="Up next" />
+                    <SectionHeader label={labels('upNext')} />
                     {scheduledMatches.map(m => (
                       <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} estimatedLabel={estimatedLabels[m.id]} tournamentLevel={activeTournamentObj?.level} />
                     ))}
@@ -1407,7 +1409,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
                 {finishedMatches.length > 0 && (
                   <div>
-                    <SectionHeader label={`Results \u00B7 ${selectedRound ?? ''}`} />
+                    <SectionHeader label={`${labels('results')} · ${competitionRoundLabel(selectedRound, labels)}`} />
                     {finishedMatches.map(m => (
                       <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={activeTournamentObj?.level} />
                     ))}
@@ -1592,6 +1594,7 @@ function ChampionTile({
   accent: string
   clickable?: boolean
 }) {
+  const labels = useTranslations('competitionLabels')
   // Convert any CSS color to rgba-ish tints for background + border.
   // For our two known accents (GREEN, ORANGE) we hand-code the tints.
   const tint = accent === GREEN
@@ -1637,7 +1640,7 @@ function ChampionTile({
         }}>
           <span>{label}{year ? ` · ${year}` : ''}</span>
           {clickable && (
-            <span style={{ fontSize: 9, color: accent, opacity: 0.7 }}>· VIEW EDITION</span>
+            <span style={{ fontSize: 9, color: accent, opacity: 0.7 }}>· {labels('viewEdition')}</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -1681,6 +1684,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   liveCount: number
 }) {
   const format = useFormatter()
+  const locale = useLocale()
+  const labels = useTranslations('competitionLabels')
   const tTournament = useTranslations('tournament')
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
@@ -2162,7 +2167,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <StatCard value={totalCountries || '\u2014'} label={tTournament('countries')} />
         <StatCard value={(() => {
           if (tournament?.prize_money_fip && tournament.prize_money_fip > 0) {
-            return `€${tournament.prize_money_fip.toLocaleString()}`
+            return `€${tournament.prize_money_fip.toLocaleString(locale)}`
           }
           const raw = tournament?.prize_money?.trim()
           if (raw && !/^[^\d]*0$/.test(raw)) return raw
@@ -2188,7 +2193,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
             {tournament.venue_address && (
               <InfoRow
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/><circle cx="12" cy="10" r="2.5" fill={MUTED} stroke="none"/></svg>}
-                label="Address"
+                label={labels('address')}
                 value={tournament.venue_address}
                 multiline
               />
@@ -2196,8 +2201,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
             {tournament.venue_type && (
               <InfoRow
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="12" y1="6" x2="12" y2="18"/></svg>}
-                label="Court"
-                value={tournament.venue_type[0].toUpperCase() + tournament.venue_type.slice(1)}
+                label={labels('court')}
+                value={['indoor', 'outdoor'].includes(tournament.venue_type.toLowerCase()) ? labels(tournament.venue_type.toLowerCase()) : labels('unknown')}
               />
             )}
             {tournament.registration_status && (
@@ -2384,7 +2389,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           richer but only ~10% of events publish one). */}
       {schedule.length > 0 && (
         <>
-          <SectionHeader label="Schedule" />
+          <SectionHeader label={labels('schedule')} />
           <div style={{
             background: BG_CARD,
             clipPath: CHUNKY.card,
@@ -2400,7 +2405,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
                   {s.date.split('-')[0]?.trim() || '—'}
                 </span>
                 <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>
-                  {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})
+                  {competitionRoundLabel(s.round, labels)} ({labels('matchCount', { count: s.count })})
                 </span>
               </div>
             ))}
@@ -2433,6 +2438,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
   userTz: string
 }) {
   const router = useRouter()
+  const labels = useTranslations('competitionLabels')
   const tTournament = useTranslations('tournament')
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const finishedMatches = genderMatches.filter(m =>
@@ -2512,10 +2518,10 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
   })()
 
   const stats: { label: string; value: string }[] = [
-    { label: 'Total matches played', value: String(totalPlayed) },
-    { label: '3-set matches', value: `${threeSetMatches} (${threeSetPct}%)` },
+    { label: labels('totalPlayed'), value: String(totalPlayed) },
+    { label: labels('threeSets'), value: `${threeSetMatches} (${threeSetPct}%)` },
   ]
-  if (avgDurationLabel) stats.push({ label: 'Average match duration', value: avgDurationLabel })
+  if (avgDurationLabel) stats.push({ label: labels('averageDuration'), value: avgDurationLabel })
 
   const AvatarCircle = ({ player, size }: { player: any; size: number }) => (
     <div style={{
@@ -2571,13 +2577,13 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
                 padding: '3px 10px',
                 clipPath: CHUNKY.badge,
               }}>
-                CHAMPIONS
+                {labels('champions')}
               </div>
               <div
                 onClick={() => router.push(`/match/${finalMatch.id}`)}
                 style={{ fontSize: 11, color: GREEN, cursor: 'pointer', fontWeight: 700 }}
               >
-                Details &rsaquo;
+                {labels('details')} &rsaquo;
               </div>
             </div>
 
@@ -2637,7 +2643,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
       {/* Tournament stats */}
       {totalPlayed > 0 && (
         <>
-          <SectionHeader label="Tournament Stats" />
+          <SectionHeader label={labels('tournamentStats')} />
           {stats.map((stat, i) => (
             <div key={i} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -2654,7 +2660,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
           {topUpsets.length > 0 && (
             <>
               <div style={{ marginTop: 8 }}>
-                <SectionHeader label="Biggest Upsets" />
+                <SectionHeader label={labels('upsets')} />
               </div>
               {topUpsets.map((upset, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>

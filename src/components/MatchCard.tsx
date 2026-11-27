@@ -1,4 +1,5 @@
 'use client'
+import { competitionRoundLabel, competitionCourtLabel } from '@/lib/competition-display'
 
 // src/components/MatchCard.tsx
 //
@@ -101,42 +102,26 @@ const _matchCardPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts
 // uppercase short labels for the chip ("FINALS", "SEMIS", "QUARTERS",
 // "R16"…). Keeps the visual grid tight without losing meaning.
 
-function formatRound(round: string | null): string | null {
-  if (!round) return null
-  const r = round.trim().toLowerCase()
-  if (!r) return null
-  if (r === 'f' || r === 'final' || r === 'finals') return 'FINALS'
-  if (r === 'sf' || r.startsWith('semi')) return 'SEMIFINALS'
-  if (r === 'qf' || r.startsWith('quarter')) return 'QUARTERFINALS'
-  if (r === 'r16' || r.includes('round of 16') || r.includes('1/8')) return 'R16'
-  if (r === 'r32' || r.includes('round of 32') || r.includes('1/16')) return 'R32'
-  if (r === 'r64') return 'R64'
-  if (r === 'r128') return 'R128'
-  if (/^q\d/.test(r) || r.startsWith('qual')) return round.toUpperCase()
-  // Fallback: uppercase the source string. Keeps badges legible for
-  // sources we haven't mapped explicitly.
-  return round.toUpperCase()
-}
-
 // ── Status pill ─────────────────────────────────────────────────────────
 
 function statusChip(
   match: Match,
   tournamentLevel: string | null | undefined,
+  labels: (key: string) => string,
 ): { label: string; bg: string; color: string } | null {
   const status = match.status as string
   // Presence-only collapses both 'live' and 'on_court' to the calmer
   // amber ON COURT badge — FIP-tier matches don't deliver point-by-point
   // data. See docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md.
   if (isPresenceOnlyLive({ status, sets: match.sets }, { level: tournamentLevel ?? null })) {
-    return { label: 'ON COURT', bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
+    return { label: labels('onCourt'), bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
   }
-  if (status === 'live') return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
-  if (status === 'on_court') return { label: 'ON COURT', bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
+  if (status === 'live') return { label: labels('live'), bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
+  if (status === 'on_court') return { label: labels('onCourt'), bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
   if (status === 'walkover') return { label: 'W/O', bg: 'rgba(255,255,255,0.06)', color: MUTED }
-  if (status === 'retired') return { label: 'RETIRED', bg: 'rgba(255,255,255,0.06)', color: MUTED }
+  if (status === 'retired') return { label: labels('retired'), bg: 'rgba(255,255,255,0.06)', color: MUTED }
   if (['finished', 'ended'].includes(status)) {
-    return { label: 'FINISHED', bg: 'rgba(126,211,33,0.16)', color: GREEN }
+    return { label: labels('finished'), bg: 'rgba(126,211,33,0.16)', color: GREEN }
   }
   if (status === 'scheduled') {
     // For scheduled we show the time elsewhere — skip the status chip.
@@ -215,6 +200,7 @@ export function MatchCard({
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tMatch = useTranslations('match')
+  const labels = useTranslations('competitionLabels')
   const matchPredictionEnabled = useFeatureFlag(FLAG_KEYS.MATCH_PREDICTION_ENABLED)
 
   // Per-match realtime subscription. Only opens the channel when the
@@ -293,11 +279,11 @@ export function MatchCard({
     }
   }, [isLive, match.id, p1TotalGames, p2TotalGames, _p1Pts, _p2Pts])
 
-  const round = formatRound(match.round)
+  const round = competitionRoundLabel(match.round, labels)
   const pointsBadge: MatchPoints | null = dayBucketIso && !teamCountries
     ? qualifyingPoints ?? matchRoundPoints(tournamentLevel, match.round, dayBucketIso.slice(0, 4)) : null
   const courtRaw = match.court ? match.court.trim() : null
-  const status = statusChip(match, tournamentLevel)
+  const status = statusChip(match, tournamentLevel, labels)
   const presenceOnlyLive = isPresenceOnlyLive(
     { status: match.status as string, sets: match.sets },
     { level: tournamentLevel ?? null },
@@ -464,7 +450,7 @@ export function MatchCard({
             {round && <Chip>{round}</Chip>}
             {pointsBadge != null && <MatchPointsBadge round={pointsBadge.currentRound ?? round} nextRound={pointsBadge.nextRound} points={pointsBadge.winner} loserPoints={pointsBadge.loser} qualifying={pointsBadge.qualifying} qualificationBonus={pointsBadge.qualificationBonus} />}
           </span>
-          {courtRaw && <span title={courtRaw} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, fontSize: 9, color: MUTED }}>{courtRaw.toUpperCase()}</span>}
+          {courtRaw && <span title={courtRaw} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, fontSize: 9, color: MUTED }}>{competitionCourtLabel(courtRaw, labels).toUpperCase()}</span>}
           {isScheduled && forecast?.next_to_play && <NextToPlayBadge />}
           {showDayChip && dayChipLabel && (
             <button
