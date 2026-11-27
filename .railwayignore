@@ -158,3 +158,6 @@
 
 # Never upload local caches, credentials, or development locks.
 /.local
+
+# Local verification artifacts.
+/.tmp

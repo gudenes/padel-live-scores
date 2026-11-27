@@ -88,17 +88,19 @@ export function applyAwards(player: RacePlayer, breakdown: Breakdown | null, awa
   const season=baselineDate.slice(0,4)
   // Both counting and non-counting results must reproduce FIP's actual Race total.
   const baseline=breakdown?.results.filter(r=>r.date.startsWith(season)) ?? []
-  if(!breakdown || breakdown.date!==baselineDate || baseline.some(r=>r.points===0) || bestResults(baseline)!==player.officialPoints || awards.some(a=>a.uncertain)) {
-    return {...player,pending:true,liveGain:0}
-  }
+  const pending=(pendingReason: NonNullable<RacePlayer['pendingReason']>):RacePlayer=>({...player,pending:true,liveGain:0,pendingReason})
+  if(!breakdown)return pending('profile_not_loaded')
+  if(breakdown.date!==baselineDate || bestResults(baseline)!==player.officialPoints)return pending('baseline_mismatch')
+  if(baseline.some(r=>r.points===0))return pending('incomplete_history')
+  if(awards.some(a=>a.uncertain))return pending('ambiguous_results')
   const results=[...baseline]
   const seen=new Set<string>()
   for(const award of awards) {
     const key=identity(award.tournament.name)
-    if(seen.has(key)) return {...player,pending:true,liveGain:0}
+    if(seen.has(key)) return pending('ambiguous_results')
     seen.add(key)
     const existing=results.filter(r=>identity(r.name)===key && Math.abs(Date.parse(r.date)-Date.parse(award.tournament.starts_at))<14*86400000)
-    if(existing.length>1) return {...player,pending:true,liveGain:0}
+    if(existing.length>1) return pending('ambiguous_results')
     // A result already in the publication is authoritative. Match feeds may lag
     // corrections; never apply its points twice or downgrade FIP's award.
     if(existing.length) continue
@@ -110,7 +112,7 @@ export function applyAwards(player: RacePlayer, breakdown: Breakdown | null, awa
   // Refuse overlapping live events rather than summing incompatible awards.
   for(let i=0;i<awards.length;i++) for(let j=i+1;j<awards.length;j++) {
     if(awards[i].tournament.starts_at<=awards[j].tournament.ends_at && awards[j].tournament.starts_at<=awards[i].tournament.ends_at)
-      return {...player,pending:true,liveGain:0}
+      return pending('overlapping_events')
   }
   const points=bestResults(results)
   return {...player,race_points:points,liveGain:points-player.officialPoints,pending:false}

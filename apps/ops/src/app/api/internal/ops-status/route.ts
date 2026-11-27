@@ -1,3 +1,4 @@
+import { liveRaceHealth } from '@/lib/live-race-health'
 // apps/ops/src/app/api/internal/ops-status/route.ts
 // Returns full dashboard payload as JSON. Shared data source for
 // Integration Health (Task 12) and Data Quality (Task 13).
@@ -19,7 +20,10 @@ export async function GET() {
 
   const supabase = serviceClient()
 
-  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, rankingsHealth] = await Promise.all([
+  const race = async () => {
+    try {const r=await supabase.rpc('live_race_health').abortSignal(AbortSignal.timeout(6000));return r.error?null:r.data}catch{return null}
+  }
+  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, rankingsHealth, raceData] = await Promise.all([
     fetchHealth(supabase),
     fetchFreshness(supabase),
     fetchQuality(supabase),
@@ -28,9 +32,17 @@ export async function GET() {
     fetchOngoing(supabase),
     fetchCronStats(supabase),
     fetchRankingsHealth(supabase),
+    race(),
   ])
 
   ;(health as Record<string, unknown>)['cron:rankings'] = rankingsHealth
+  for(const race of liveRaceHealth(raceData).genders) {
+    ;(health as Record<string,unknown>)['live-race:'+race.gender]={
+      status:race.status==='healthy'?'ok':race.status==='warning'?'partial':race.status,
+      started_at:race.computedAt,duration_ms:null,meta:race,error_message:race.status==='healthy'?null:race.message,
+    }
+  }
+
 
   return NextResponse.json({
     health,

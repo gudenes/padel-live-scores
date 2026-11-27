@@ -35,6 +35,6 @@ describe('integration monitor', () => {
     expect(feedHealth('fip','FIP',null,null,null,false,now).status).toBe('unknown')
     expect(feedHealth('fip','FIP',0,0,null,false,now).status).toBe('unknown')
     expect(feedHealth('fip','FIP',10,10,'2026-11-20T13:59:00Z',true,now).status).toBe('error')
-    expect(feedHealth('fip','FIP',100,6,'2026-11-20T13:59:00Z',false,now).status).toBe('warning')
+    expect(feedHealth('fip','FIP',100,1,'2026-11-20T13:59:00Z',false,now).status).toBe('warning')
   })
 })

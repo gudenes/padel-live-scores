@@ -1,3 +1,4 @@
+import type { LiveRaceHealth } from './live-race-health'
 export type Signal = 'healthy' | 'warning' | 'error' | 'unknown'
 export interface FeedHealth {
   id: string; name: string; status: Signal; message: string
@@ -8,6 +9,7 @@ export interface ProxyRoute {
   lastAttempt: string | null; lastSuccess: string | null; cooldownUntil: string | null
 }
 export interface IntegrationMonitor {
+  liveRace?: LiveRaceHealth
   fetchedAt: string
   runtime: { status: Signal; message: string; uptimeSeconds: number | null; telemetryAvailable: boolean }
   routes: ProxyRoute[]
@@ -25,8 +27,8 @@ export function budgetSignal(used: number, limit: number): Signal {
 export function feedHealth(id: string, name: string, runs: number | null, failures: number | null, lastRun: string | null, lastFailed: boolean, now: number): FeedHealth {
   if (runs === null || failures === null) return { id, name, runs: null, failures: null, lastRun: null, status: 'unknown', message: 'Ingestion history unavailable' }
   const stale = !lastRun || !Number.isFinite(Date.parse(lastRun)) || now - Date.parse(lastRun) > 2 * 60 * 60 * 1000
-  const status: Signal = runs === 0 || stale ? 'unknown' : lastFailed || failures === runs ? 'error' : failures / runs >= .05 ? 'warning' : 'healthy'
-  return { id, name, runs, failures, lastRun, status, message: stale || runs === 0 ? 'No recent activity — check the schedule' : lastFailed ? 'Latest ingestion failed' : failures / runs >= .05 ? 'Elevated failures in the last 24 hours' : 'Recent ingestion is succeeding' }
+  const status: Signal = runs === 0 || stale ? 'unknown' : lastFailed || failures === runs ? 'error' : failures > 0 ? 'warning' : 'healthy'
+  return { id, name, runs, failures, lastRun, status, message: stale || runs === 0 ? 'No recent activity — check the schedule' : lastFailed ? 'Latest ingestion failed' : failures > 0 ? 'Failures recorded in the last 24 hours' : 'Recent ingestion is succeeding' }
 }
 /** Explicit allowlist: never send upstream URLs, headers, errors or credentials to the browser. */
 export function monitorSnapshot(payload: unknown, feeds: FeedHealth[], now = Date.now()): IntegrationMonitor {
